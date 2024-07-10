@@ -8,32 +8,42 @@ components:
             - MortalityObserver()
 
     # Causes an error if left empty. Uncomment when you have components. 
-    # vivarium_nih_moud.components:
+    vivarium_nih_moud.components:
+        - moud_model()
 
 configuration:
     input_data:
+        artifact_path: /share/scratch/users/abie/moud.hdf
         input_draw_number: 0
     interpolation:
         order: 0
-        extrapolate: False
+        extrapolate: True
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time', 'age']
         random_seed: 0
     time:
         start:
-            year: 2005
-            month: 7
-            day: 2
+            year: 2025
+            month: 1
+            day: 1
         end:
-            year: 2010
-            month: 7
-            day: 2
+            year: 2030
+            month: 1
+            day: 1
         step_size: 1 # Days
     population:
         population_size: 100
-        age_start: 0
-        age_end: 100
+        initialization_age_min: 0
+        initialization_age_max: 100
+    opioid_use_disorders:
+        exposure: 0.016, # HACK: this should not be used, nor necessary
+        state_to_risk_category_map:
+            with_condition: cat1
+            susceptible_to_opioid_use_disorders: cat2
+            on_treatment: cat2
+        category_thresholds: []
+        rebinned_exposed: []
 
     stratification:
         default:
