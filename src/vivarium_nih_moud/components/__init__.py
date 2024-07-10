@@ -1,5 +1,1 @@
-from .diseases import (
-    RiskDiseaseModel,
-    moud_model,
-)
-
+from .diseases import RiskDiseaseModel, moud_model

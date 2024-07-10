@@ -27,10 +27,10 @@ STANDARD_COLUMNS = {
 THROWAWAY_COLUMNS = [f"{state}_event_count" for state in models.STATES]
 
 DEATH_COLUMN_TEMPLATE = "MEASURE_death_due_to_{CAUSE_OF_DEATH}_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
-YLLS_COLUMN_TEMPLATE = "MEASURE_ylls_due_to_{CAUSE_OF_DEATH}_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
-YLDS_COLUMN_TEMPLATE = (
-    "MEASURE_ylds_due_to_{CAUSE_OF_DISABILITY}_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
+YLLS_COLUMN_TEMPLATE = (
+    "MEASURE_ylls_due_to_{CAUSE_OF_DEATH}_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
 )
+YLDS_COLUMN_TEMPLATE = "MEASURE_ylds_due_to_{CAUSE_OF_DISABILITY}_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
 STATE_PERSON_TIME_COLUMN_TEMPLATE = (
     "MEASURE_{STATE}_person_time_AGE_GROUP_{AGE_GROUP}_CURRENT_YEAR_{YEAR}_SEX_{SEX}"
 )
@@ -46,8 +46,7 @@ COLUMN_TEMPLATES = {
     "transition_count": TRANSITION_COUNT_COLUMN_TEMPLATE,
 }
 
-NON_COUNT_TEMPLATES = [
-]
+NON_COUNT_TEMPLATES = []
 
 SEXES = ("male", "female")
 # TODO - add literals for years in the model
@@ -87,11 +86,18 @@ def RESULT_COLUMNS(kind="all"):
         columns = list(STANDARD_COLUMNS.values()) + columns
     else:
         template = COLUMN_TEMPLATES[kind]
-        filtered_field_map = {field: values
-                              for field, values in TEMPLATE_FIELD_MAP.items() if f"{{{field}}}" in template}
-        fields, value_groups = filtered_field_map.keys(), itertools.product(*filtered_field_map.values())
+        filtered_field_map = {
+            field: values
+            for field, values in TEMPLATE_FIELD_MAP.items()
+            if f"{{{field}}}" in template
+        }
+        fields, value_groups = filtered_field_map.keys(), itertools.product(
+            *filtered_field_map.values()
+        )
         for value_group in value_groups:
-            columns.append(template.format(**{field: value for field, value in zip(fields, value_group)}))
+            columns.append(
+                template.format(**{field: value for field, value in zip(fields, value_group)})
+            )
     return columns
 
 
@@ -101,13 +107,21 @@ def RESULTS_MAP(kind):
         raise ValueError(f"Unknown result column type {kind}")
     columns = []
     template = COLUMN_TEMPLATES[kind]
-    filtered_field_map = {field: values
-                          for field, values in TEMPLATE_FIELD_MAP.items() if f"{{{field}}}" in template}
-    fields, value_groups = list(filtered_field_map.keys()), list(itertools.product(*filtered_field_map.values()))
+    filtered_field_map = {
+        field: values
+        for field, values in TEMPLATE_FIELD_MAP.items()
+        if f"{{{field}}}" in template
+    }
+    fields, value_groups = list(filtered_field_map.keys()), list(
+        itertools.product(*filtered_field_map.values())
+    )
     for value_group in value_groups:
-        columns.append(template.format(**{field: value for field, value in zip(fields, value_group)}))
+        columns.append(
+            template.format(**{field: value for field, value in zip(fields, value_group)})
+        )
     df = pd.DataFrame(value_groups, columns=map(lambda x: x.lower(), fields))
     df["key"] = columns
-    df["measure"] = kind  # per researcher feedback, this column is useful, even when it"s identical for all rows
+    df[
+        "measure"
+    ] = kind  # per researcher feedback, this column is useful, even when it"s identical for all rows
     return df.set_index("key").sort_index()
-

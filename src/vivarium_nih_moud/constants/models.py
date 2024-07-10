@@ -2,7 +2,6 @@ from vivarium_nih_moud.constants import data_keys
 
 
 class TransitionString(str):
-
     def __new__(cls, value):
         # noinspection PyArgumentList
         obj = str.__new__(cls, value.lower())
@@ -35,4 +34,6 @@ STATE_MACHINE_MAP = {
 
 
 STATES = tuple(state for model in STATE_MACHINE_MAP.values() for state in model["states"])
-TRANSITIONS = tuple(state for model in STATE_MACHINE_MAP.values() for state in model["transitions"])
+TRANSITIONS = tuple(
+    state for model in STATE_MACHINE_MAP.values() for state in model["transitions"]
+)
