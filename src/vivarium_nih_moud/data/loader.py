@@ -53,14 +53,14 @@ def get_data(
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.ACMR: load_standard_data,
-        # TODO - add appropriate mappings
-        # data_keys.DIARRHEA.PREVALENCE: load_standard_data,
-        # data_keys.DIARRHEA.INCIDENCE_RATE: load_standard_data,
-        # data_keys.DIARRHEA.REMISSION_RATE: load_standard_data,
-        # data_keys.DIARRHEA.CSMR: load_standard_data,
-        # data_keys.DIARRHEA.EMR: load_standard_data,
-        # data_keys.DIARRHEA.DISABILITY_WEIGHT: load_standard_data,
-        # data_keys.DIARRHEA.RESTRICTIONS: load_metadata,
+
+        data_keys.OUD.PREVALENCE: load_standard_data,
+        data_keys.OUD.INCIDENCE_RATE: load_standard_data,
+        data_keys.OUD.REMISSION_RATE: load_standard_data,
+        data_keys.OUD.CSMR: load_standard_data,
+        data_keys.OUD.EMR: load_standard_data,
+        data_keys.OUD.DISABILITY_WEIGHT: load_standard_data,
+        data_keys.OUD.RESTRICTIONS: load_metadata,
     }
     return mapping[lookup_key](lookup_key, location, years)
 

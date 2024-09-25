@@ -29,23 +29,16 @@ class __Population(NamedTuple):
 POPULATION = __Population()
 
 
-# TODO - sample key group used to identify keys in model
-# For more information see the tutorial:
-# https://vivarium-inputs.readthedocs.io/en/latest/tutorials/pulling_data.html#entity-measure-data
-class __SomeDisease(NamedTuple):
+class __OUD(NamedTuple):
 
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    SOME_DISEASE_PREVALENCE: TargetString = TargetString("cause.some_disease.prevalence")
-    SOME_DISEASE_INCIDENCE_RATE: TargetString = TargetString(
-        "cause.some_disease.incidence_rate"
-    )
-    SOME_DISEASE_REMISSION_RATE: TargetString = TargetString(
-        "cause.some_disease.remission_rate"
-    )
-    DISABILITY_WEIGHT: TargetString = TargetString("cause.some_disease.disability_weight")
-    EMR: TargetString = TargetString("cause.some_disease.excess_mortality_rate")
-    CSMR: TargetString = TargetString("cause.some_disease.cause_specific_mortality_rate")
-    RESTRICTIONS: TargetString = TargetString("cause.some_disease.restrictions")
+    PREVALENCE: TargetString = TargetString("cause.opioid_use_disorders.prevalence")
+    INCIDENCE_RATE: TargetString = TargetString("cause.opioid_use_disorders.incidence_rate")
+    REMISSION_RATE: TargetString = TargetString("cause.opioid_use_disorders.remission_rate")
+    DISABILITY_WEIGHT: TargetString = TargetString("cause.opioid_use_disorders.disability_weight")
+    EMR: TargetString = TargetString("cause.opioid_use_disorders.excess_mortality_rate")
+    CSMR: TargetString = TargetString("cause.opioid_use_disorders.cause_specific_mortality_rate")
+    RESTRICTIONS: TargetString = TargetString("cause.opioid_use_disorders.restrictions")
 
     # Useful keys not for the artifact - distinguished by not using the colon type declaration
     RAW_DISEASE_PREVALENCE = TargetString("sequela.raw_disease.prevalence")
@@ -53,17 +46,16 @@ class __SomeDisease(NamedTuple):
 
     @property
     def name(self):
-        return "some_disease"
+        return "oud"
 
     @property
     def log_name(self):
-        return "some disease"
+        return "oud"
 
 
-SOME_DISEASE = __SomeDisease()
+OUD = __OUD()
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
-    # TODO: list all key groups here
-    # SOME_DISEASE
+    OUD,
 ]

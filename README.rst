@@ -1,6 +1,6 @@
-===============================
-vivarium_nih_moud
-===============================
+========================
+Vivarium MOUD Simulation
+========================
 
 Research repository for the vivarium_nih_moud project.
 
