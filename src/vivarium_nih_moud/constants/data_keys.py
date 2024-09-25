@@ -35,9 +35,13 @@ class __OUD(NamedTuple):
     PREVALENCE: TargetString = TargetString("cause.opioid_use_disorders.prevalence")
     INCIDENCE_RATE: TargetString = TargetString("cause.opioid_use_disorders.incidence_rate")
     REMISSION_RATE: TargetString = TargetString("cause.opioid_use_disorders.remission_rate")
-    DISABILITY_WEIGHT: TargetString = TargetString("cause.opioid_use_disorders.disability_weight")
+    DISABILITY_WEIGHT: TargetString = TargetString(
+        "cause.opioid_use_disorders.disability_weight"
+    )
     EMR: TargetString = TargetString("cause.opioid_use_disorders.excess_mortality_rate")
-    CSMR: TargetString = TargetString("cause.opioid_use_disorders.cause_specific_mortality_rate")
+    CSMR: TargetString = TargetString(
+        "cause.opioid_use_disorders.cause_specific_mortality_rate"
+    )
     RESTRICTIONS: TargetString = TargetString("cause.opioid_use_disorders.restrictions")
 
     # Useful keys not for the artifact - distinguished by not using the colon type declaration

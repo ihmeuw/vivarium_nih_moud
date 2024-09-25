@@ -53,7 +53,6 @@ def get_data(
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.ACMR: load_standard_data,
-
         data_keys.OUD.PREVALENCE: load_standard_data,
         data_keys.OUD.INCIDENCE_RATE: load_standard_data,
         data_keys.OUD.REMISSION_RATE: find_consistent_remission_rate,
@@ -165,17 +164,19 @@ def _load_em_from_meid(location, meid, measure):
 
 
 # project-specific data functions here
-def find_consistent_remission_rate(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
+def find_consistent_remission_rate(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
     if key == data_keys.OUD.REMISSION_RATE:
         incidence_rate = get_data(data_keys.OUD.INCIDENCE_RATE, location)
         prevalence = get_data(data_keys.OUD.PREVALENCE, location)
         excess_mortality = get_data(data_keys.OUD.EMR, location)
-        
+
         # TODO: use dismod to get remission rate
         remission_rate = incidence_rate / prevalence
         return remission_rate
     else:
-        raise ValueError(f'Unrecognized key {key}')
+        raise ValueError(f"Unrecognized key {key}")
 
 
 def get_entity(key: Union[str, EntityKey]):
