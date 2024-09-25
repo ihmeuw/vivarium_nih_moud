@@ -56,7 +56,7 @@ def get_data(
 
         data_keys.OUD.PREVALENCE: load_standard_data,
         data_keys.OUD.INCIDENCE_RATE: load_standard_data,
-        data_keys.OUD.REMISSION_RATE: load_standard_data,
+        data_keys.OUD.REMISSION_RATE: find_consistent_remission_rate,
         data_keys.OUD.CSMR: load_standard_data,
         data_keys.OUD.EMR: load_standard_data,
         data_keys.OUD.DISABILITY_WEIGHT: load_standard_data,
@@ -164,7 +164,18 @@ def _load_em_from_meid(location, meid, measure):
     return vi_utils.sort_hierarchical_data(data).droplevel("location")
 
 
-# TODO - add project-specific data functions here
+# project-specific data functions here
+def find_consistent_remission_rate(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
+    if key == data_keys.OUD.REMISSION_RATE:
+        incidence_rate = get_data(data_keys.OUD.INCIDENCE_RATE, location)
+        prevalence = get_data(data_keys.OUD.PREVALENCE, location)
+        excess_mortality = get_data(data_keys.OUD.EMR, location)
+        
+        # TODO: use dismod to get remission rate
+        remission_rate = incidence_rate / prevalence
+        return remission_rate
+    else:
+        raise ValueError(f'Unrecognized key {key}')
 
 
 def get_entity(key: Union[str, EntityKey]):

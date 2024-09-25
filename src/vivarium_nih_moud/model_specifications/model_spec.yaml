@@ -3,7 +3,10 @@ components:
         population:
             - BasePopulation()
             - Mortality()
+        disease:
+            - SIS('opioid_use_disorders')
         results:
+            - DiseaseObserver('opioid_use_disorders')
             - ResultsStratifier()
             - DisabilityObserver()
             - MortalityObserver()
@@ -49,3 +52,5 @@ configuration:
         # mortality:
         #     include:
         #     exclude:
+    opioid_use_disorders:
+        remission_rate: 2.0
