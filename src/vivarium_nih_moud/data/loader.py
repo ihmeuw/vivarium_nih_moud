@@ -173,6 +173,19 @@ def find_consistent_remission_rate(
         excess_mortality = get_data(data_keys.OUD.EMR, location)
 
         # TODO: use dismod to get remission rate
+        # dm = dismod_at.ConsistentModel()
+        # dm.set_data(
+        #     {
+        #         "i": incidence_rate,
+        #         "p": prevalence,
+        #         "f": excess_mortality,
+        #     }
+        # )
+        # dm.fit_model()
+        # remission_rate = dm.get_remission_rate()
+        # how should I update the incidence, prevalence, and excess_mortality to be consistent with the remission rate?
+        # incidence_rate = dm.get_incidence() # but how would I save it?
+
         remission_rate = incidence_rate / prevalence
         return remission_rate
     else:
