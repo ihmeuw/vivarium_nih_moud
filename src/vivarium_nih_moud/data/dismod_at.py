@@ -14,9 +14,9 @@ import interpax
 from typing import Callable
 
 
-def transform_to_data(param, df_in, sex, ages, years, location):
+def transform_to_data(param, df_in, sex, ages, years):
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
-    t = df_in.loc[(location, sex)]
+    t = df_in.loc[sex]
     results = []  # fill with rows of data, then convert to a dataframe
     
     for a in ages:
@@ -35,6 +35,11 @@ def transform_to_data(param, df_in, sex, ages, years, location):
             results.append(row)
 
     return pd.DataFrame(results)
+
+def artifact_to_data_dict(art, sex, ages, years):
+    data_dict = {}
+    for param in art.keys():
+        data_dict[param] = transform_to_data(param, art.load(key), sex, ages, years)
 
 def transform_to_prior(df, sex, ages, years, location):
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
@@ -214,42 +219,67 @@ def ode_model(group, p, i, r, f, m, sigma, ages, years):
     
     
 class ConsistentModel:
-    def __init__(self, sexes, ages, years, locations):
-        self.sexes = sexes
+    def __init__(self, sex, ages, years):
+        self.sex = sex
         self.ages = ages
         self.years = years
-        self.locations = locations
-        
-    def set_data(self, data_dict):
-        df, mu, s2 = {}, {}, {},
+    
+    def fit(self, df_data):
+        # expect this to take about 2 minutes to run
+        group = ''
+        ages, years = self.ages, self.years
+        location = ''
+        sex = self.sex
+        def model():
+            knot_val_dict = {}
+            for param in 'pifmr':
+                knot_val_dict[param] = numpyro.sample(
+                    f'{param}_{group}',
+                    dist.TruncatedNormal(loc=jnp.zeros((len(ages), len(years))),
+                                        scale=jnp.ones((len(ages), len(years))),
+                                        low=0.0,
+                                        )
+                )
+            # TODO: consider moving knots of p to midpoints
+            rate_functions = single_location_model(group, sex, location, ages, years, knot_val_dict, df_data,
+                                                include_consistency_constraints=True)
 
-        for param in data_dict.keys():
-            for sex in self.sexes:
-                for location in self.locations:
-                    df_param = data_dict[param] # FIXME: this is a hack and the details for what is in data_dict should be thought through and written out!
-                    df[param, sex, location] = df_param
-                    if param == 'pop':
-                        continue
+        sampler = infer.MCMC(
+            infer.NUTS(model,
+                    init_strategy=numpyro.infer.init_to_value(
+                        values={
+                            f'p_{group}':jnp.ones([len(ages), len(years)])*.05,
+                            f'i_{group}':jnp.ones([len(ages), len(years)])*.05,
+                            f'f_{group}':jnp.ones([len(ages), len(years)])*.05,
+                            f'm_{group}':jnp.ones([len(ages), len(years)])*.05,
+                            f'r_{group}':jnp.ones([len(ages), len(years)])*.05,
+                        }
+                    )
+                ),
+            num_warmup=1_000,
+            num_samples=100,
+            num_chains=1,
+            progress_bar=True,
+        )
 
-                    mu[param, sex, location], s2[param, sex, location] = \
-                        transform_to_prior(df_param, sex, self.ages, self.years, location)
+        sampler.run(jax.random.PRNGKey(0),
+                )
+        self.samples = sampler.get_samples()                                
 
-        for sex in self.sexes:
-            for location in self.locations:
-                mu['r', sex, location] = mu['i', sex, location] * 0 + .5
-                s2['r', sex, location] = mu['i', sex, location] * 0 + .01
-            
-                mu['m', sex, location] = mu['m_all', sex, location] - mu['csmr_with', sex, location]
-                s2['m', sex, location] = s2['m_all', sex, location]
 
-        self.df, self.mu, self.s2 = df, mu, s2, 
+    def get_rate(self, param):
+        # import pdb; pdb.set_trace()
+        assert hasattr(self, 'samples'), 'Must run fit() first'
+        group = ''
 
-    def fit_model(self):
-        # code to come, expect it to take about 2 minutes to run
-        pass
-
-    def get_remission_rate(self):
-        # code to come, will require calling fit_model before it can return something
-        # interactive tests in 2024_10_09a_dismod_at_numpyro_at_refactor_into_vivarium_nih_moud notebook
-        pass
+        rate_table = []
+        for i, a in enumerate(self.ages):
+            for j, t in enumerate(self.years):
+                rate = self.samples[f'{param}_{group}'][:, i, j]
+                
+                row = dict(age_start=a, age_end=a+5, year_start=t, year_end=t+1, sex=self.sex,)
+                for i, r_i in enumerate(rate):
+                    row[f'draw_{i}'] = float(r_i)
+                rate_table.append(row)
+        return pd.DataFrame(rate_table).set_index(['sex', 'age_start', 'age_end', 'year_start', 'year_end'])
     
