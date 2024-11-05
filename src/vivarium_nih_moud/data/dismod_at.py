@@ -173,7 +173,7 @@ def single_location_model(group, sex, location, ages, years, knot_val_dict, df_d
     
     p = at_param_w_data(f'p_{group}', ages, years,
                         knot_val_dict['p'],
-                        df_data[df_data.measure == 'p'], method='linear')
+                        df_data[df_data.measure == 'p'], method='constant')
     
     if include_consistency_constraints:
         ode_model(group, p, i, r, f, m, sigma=0.01, ages=ages, years=years)
@@ -267,7 +267,7 @@ class ConsistentModel:
         self.samples = sampler.get_samples()                                
 
 
-    def get_rate(self, param):
+    def get_rate(self, param, year):
         # import pdb; pdb.set_trace()
         assert hasattr(self, 'samples'), 'Must run fit() first'
         group = ''
@@ -275,6 +275,8 @@ class ConsistentModel:
         rate_table = []
         for i, a in enumerate(self.ages):
             for j, t in enumerate(self.years):
+                if year != t:
+                    continue
                 rate = self.samples[f'{param}_{group}'][:, i, j]
                 
                 row = dict(age_start=a, age_end=a+5, year_start=t, year_end=t+1, sex=self.sex,)
