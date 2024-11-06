@@ -183,7 +183,8 @@ def ode_model(group, p, i, r, f, m, sigma, ages, years):
     def dismod_f(t, y, args):
         S, C = y
         i, r, f, m = args
-        return (-m*S - i*S + r*C, -m*C + i*S - r*C - f*C)
+        return (-m*S - i*S + r*C,
+                -m*C + i*S - r*C - f*C)
 
     def ode_consistency_factor(at):
         a, t = at
@@ -192,7 +193,7 @@ def ode_model(group, p, i, r, f, m, sigma, ages, years):
         solver = Dopri5()
         saveat = SaveAt(t0=False, t1=True)
 
-        y0 = (p(a,t), 1-p(a,t))
+        y0 = (1-p(a,t), p(a,t))
         solution = diffeqsolve(term, solver,
                                t0=t, t1=t+dt,
                                dt0=.5, y0=y0,
