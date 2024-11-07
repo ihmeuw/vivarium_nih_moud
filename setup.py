@@ -58,7 +58,13 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs[data]>=5.0.7", "jax", "numpyro", "diffrax", "interpax"]
+    data_requirements = [
+        "vivarium_inputs[data]>=5.0.7",
+        "jax",
+        "numpyro",
+        "diffrax",
+        "interpax",
+    ]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.3"]
     test_requirements = ["pytest"]
     lint_requirements = ["black", "isort"]

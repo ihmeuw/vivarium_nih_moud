@@ -164,6 +164,7 @@ def _load_em_from_meid(location, meid, measure):
 
 # project-specific data functions here
 
+
 def get_entity(key: Union[str, EntityKey]):
     # Map of entity types to their gbd mappings.
     type_map = {
