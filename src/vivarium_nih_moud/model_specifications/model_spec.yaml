@@ -4,9 +4,9 @@ components:
             - BasePopulation()
             - Mortality()
         disease:
-            - SIS('opioid_use_disorders')
+            - SIS('oud_consistent')
         results:
-            - DiseaseObserver('opioid_use_disorders')
+            - DiseaseObserver('oud_consistent')
             - ResultsStratifier()
             - DisabilityObserver()
             - MortalityObserver()
