@@ -147,12 +147,14 @@ def generate_consistent_moud_rates(art: Artifact, location: str, years: Optional
     # TODO: check if the consistent rates are already in the artifact, and if so, skip rest of this function
 
     # copy metadata
-    for key in ['cause.opioid_use_disorders.restrictions',
-                'cause.opioid_use_disorders.disability_weight']:
+    for key in [
+        "cause.opioid_use_disorders.restrictions",
+        "cause.opioid_use_disorders.disability_weight",
+    ]:
         data = art.load(key)
-        write_or_replace(art, key.replace('opioid_use_disorders', 'oud_consistent'), data)
+        write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
     assert 0
-    
+
     ages = np.arange(0, 96, 5)
     years = np.array([2020, 2025])
     sexes = ["Male", "Female"]
@@ -204,16 +206,17 @@ def generate_consistent_moud_rates(art: Artifact, location: str, years: Optional
             rate_name = key[rate_type]
         else:
             rate_name = "cause.opioid_use_disorders.remission_rate"
-        rate_name = rate_name.replace('opioid_use_disorders', 'oud_consistent')
+        rate_name = rate_name.replace("opioid_use_disorders", "oud_consistent")
         write_or_replace(art, rate_name, df_out)
 
     # then do cause specific mortality rate
-    df_out = get_rates(m, 'p', 2020) * get_rates(m, 'f', 2020)
-    rate_name = 'cause.oud_consistent.cause_specific_mortality_rate'
+    df_out = get_rates(m, "p", 2020) * get_rates(m, "f", 2020)
+    rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
     write_or_replace(art, rate_name, df_out)
 
+
 def write_or_replace(art, key, data):
-        if key in art.keys:
-            art.replace(key, data)
-        else:
-            art.write(key, data)
+    if key in art.keys:
+        art.replace(key, data)
+    else:
+        art.write(key, data)
