@@ -305,7 +305,7 @@ class ConsistentModel:
                 ),
             ),
             num_warmup=1_000,
-            num_samples=100,
+            num_samples=1_000,
             num_chains=1,
             progress_bar=True,
         )

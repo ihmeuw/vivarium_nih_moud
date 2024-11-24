@@ -153,7 +153,6 @@ def generate_consistent_moud_rates(art: Artifact, location: str, years: Optional
     ]:
         data = art.load(key)
         write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
-    assert 0
 
     ages = np.arange(0, 96, 5)
     years = np.array([2020, 2025])
