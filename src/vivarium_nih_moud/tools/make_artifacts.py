@@ -16,9 +16,10 @@ import click
 from loguru import logger
 
 from ..constants import data_keys, metadata
+from ..data import dismod_at
 from ..tools.app_logging import add_logging_sink, decode_status
 from ..utilities import sanitize_location
-from ..data import dismod_at
+
 
 def running_from_cluster() -> bool:
     import vivarium_cluster_tools as vct

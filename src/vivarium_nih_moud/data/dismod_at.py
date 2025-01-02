@@ -199,12 +199,20 @@ def single_location_model(
     )
 
     p = at_param_w_data(
-        f"p_{group}", ages, years, knot_val_dict["p"], df_data[df_data.measure == "p"],
+        f"p_{group}",
+        ages,
+        years,
+        knot_val_dict["p"],
+        df_data[df_data.measure == "p"],
         method="constant",
     )
 
     tx = at_param_w_data(
-        f"tx_{group}", ages, years, knot_val_dict["tx"], df_data[df_data.measure == "tx"],
+        f"tx_{group}",
+        ages,
+        years,
+        knot_val_dict["tx"],
+        df_data[df_data.measure == "tx"],
         method="constant",
     )
 
@@ -217,10 +225,11 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
     def dismod_f(t, y, args):
         S, C, T = y
         i, r, ti, ts, tf, f, m = args
-        return (0 - m*S       - i*S + r*C        + ts*T       ,
-                0 - m*C - f*C + i*S - r*C - ti*C        + tf*T,
-                0 - m*T                   + ti*C - ts*T - tf*T,
-               )
+        return (
+            0 - m * S - i * S + r * C + ts * T,
+            0 - m * C - f * C + i * S - r * C - ti * C + tf * T,
+            0 - m * T + ti * C - ts * T - tf * T,
+        )
 
     def ode_consistency_factor(at):
         a, t = at
@@ -242,7 +251,7 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
         )
 
         S, C, T = solution.ys
-        difference = jnp.log((C+T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))
+        difference = jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))
         difference += jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt))
         return difference
 
@@ -353,6 +362,7 @@ class ConsistentModel:
             ["sex", "age_start", "age_end", "year_start", "year_end"]
         )
 
+
 def generate_consistent_moud_rates(art, location: str, years):
     """Generates consistent rates for MOUD data.
 
@@ -445,9 +455,11 @@ def write_or_replace(art, key, data):
     else:
         art.write(key, data)
 
+
 if __name__ == "__main__":
     from vivarium import Artifact
-    location = 'Washington'
+
+    location = "Washington"
     years = 2021
-    art = Artifact('washington.hdf')
+    art = Artifact("washington.hdf")
     generate_consistent_moud_rates(art, location, years)

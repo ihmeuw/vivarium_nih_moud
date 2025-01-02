@@ -128,5 +128,3 @@ def write_data_by_draw(artifact: Artifact, key: str, data: pd.DataFrame):
         data = data.reset_index(drop=True)
         for c in data.columns:
             store.put(f"{key.path}/{c}", data[c])
-
-
