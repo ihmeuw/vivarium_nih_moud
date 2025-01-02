@@ -3,13 +3,14 @@ components:
         population:
             - BasePopulation()
             - Mortality()
-        results:
-            - ResultsStratifier()
-            - DisabilityObserver()
-            # - DiseaseObserver('oud_consistent')
-            # - MortalityObserver()
     vivarium_nih_moud.components:
         - conditions.moud_model()
+    # vivarium_public_health:
+        # results:
+            # - ResultsStratifier()
+            # - DisabilityObserver()
+            # - DiseaseObserver('oud_consistent')
+            # - MortalityObserver()
 
 configuration:
     input_data:
@@ -42,13 +43,9 @@ configuration:
     oud_consistent:
         exposure: 0.016, # HACK: this should not be used, nor necessary
         state_to_risk_category_map:
-            with_condition: cat1
-            susceptible_to_opioid_use_disorders: cat2
-            on_treatment: cat2
-    risk_factor:
-        oud_consistent:
-            category_thresholds: []
-            rebinned_exposed: []
+            oud_consistent: cat1
+            susceptible_to_oud_consistent: cat2
+            on_treatment_for_oud_consistent : cat2
 
 
     stratification:

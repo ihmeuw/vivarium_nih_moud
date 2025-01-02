@@ -13,6 +13,9 @@ from vivarium_public_health.utilities import EntityString
 
 
 class RiskDiseaseModel(DiseaseModel):
+    @property
+    def name(self):
+        return f"disease_model.{self.cause}"
 
     def setup(self, builder):
         super(DiseaseModel, self).setup(builder)
@@ -26,14 +29,12 @@ class RiskDiseaseModel(DiseaseModel):
         self.randomness = builder.randomness.get_stream(f"{self.state_column}_initial_states")
 
         # create a pipeline for a risk exposure based on disease model state
-        # self.exposure = builder.value.register_value_producer(
-        #     f"{self.state_column}.exposure",
-        #     source=self.get_current_exposure,
-        #     requires_columns=[self.state_column],
-        #     preferred_post_processor=get_exposure_post_processor(
-        #         builder, EntityString(f"risk_factor.{self.state_column}")
-        #     ),
-        # )
+        self.exposure = builder.value.register_value_producer(
+            f"{self.state_column}.exposure",
+            source=self.get_current_exposure,
+            requires_columns=[self.state_column],
+            preferred_post_processor=None,
+        )
     
     def get_current_exposure(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
