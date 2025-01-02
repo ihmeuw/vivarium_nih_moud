@@ -1,16 +1,14 @@
 components:
-    vivarium_public_health:
-        population:
-            - BasePopulation()
-            - Mortality()
+    vivarium_public_health.population:
+        - BasePopulation()
+        - Mortality()
     vivarium_nih_moud.components:
         - conditions.moud_model()
-    # vivarium_public_health:
-        # results:
-            # - ResultsStratifier()
-            # - DisabilityObserver()
-            # - DiseaseObserver('oud_consistent')
-            # - MortalityObserver()
+    vivarium_public_health.results:
+        - ResultsStratifier()
+        - DisabilityObserver()
+        - DiseaseObserver('oud_consistent')
+        - MortalityObserver()
 
 configuration:
     input_data:
