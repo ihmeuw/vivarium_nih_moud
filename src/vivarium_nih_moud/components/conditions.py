@@ -61,48 +61,86 @@ def moud_model():
 
     cause = 'oud_consistent'
 
-    susceptible = SusceptibleState(cause, allow_self_transition=True)
-    with_condition = DiseaseState(cause, allow_self_transition=True)
-    with_condition.has_excess_mortality = False
-
-    # Custom data function for the on_treatment state prevalence
-    def get_on_treatment_prevalence(builder, cause):
+    # Custom data function for the not_on_treatment state prevalence
+    def get_off_treatment_prevalence(builder, _):
+        base_cause = cause  # Use the outer cause variable
+        
         # Load overall prevalence and treatment ratio
-        prevalence = builder.data.load(f'cause.{cause}.prevalence')
-        treatment_ratio = builder.data.load(f'cause.{cause}.treatment_ratio')
+        prevalence = builder.data.load(f'cause.{base_cause}.prevalence')
+        treatment_ratio = builder.data.load(f'cause.{base_cause}.treatment_ratio')
         
         # Calculate on_treatment prevalence
-        on_treatment_prevalence = prevalence * treatment_ratio
-        return on_treatment_prevalence
+        index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
+        off_treatment_prevalence = prevalence.set_index(index_cols) * (1-treatment_ratio.set_index(index_cols))
+        return off_treatment_prevalence.reset_index()
 
-    # Create on_treatment state with custom prevalence data function
+    # Custom data function for the on_treatment state prevalence
+    def get_on_treatment_prevalence(builder, state_id):  # Changed parameter name from 'cause' to 'state_id'
+        # Extract the base cause name from the state_id
+        base_cause = cause  # Use the outer cause variable
+        
+        # Load overall prevalence and treatment ratio
+        prevalence = builder.data.load(f'cause.{base_cause}.prevalence')
+        treatment_ratio = builder.data.load(f'cause.{base_cause}.treatment_ratio')
+        
+        # Calculate on_treatment prevalence
+        index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
+        on_treatment_prevalence = prevalence.set_index(index_cols) * treatment_ratio.set_index(index_cols)
+        return on_treatment_prevalence.reset_index()
+
+    def get_zero(builder, state):
+        return 0.0
+
+    susceptible = SusceptibleState(cause, allow_self_transition=True)
+    
+    with_condition = DiseaseState(
+        cause,
+        allow_self_transition=True,
+        get_data_functions={'prevalence': get_off_treatment_prevalence,
+                           }
+    )
+    with_condition.has_excess_mortality = True
+
+
+    # Create on_treatment state with custom prevalence data function 
     on_treatment = DiseaseState(
         f"on_treatment_for_{cause}", 
         allow_self_transition=True,
-        get_data_functions={'prevalence': get_on_treatment_prevalence}
+        get_data_functions={'prevalence': get_on_treatment_prevalence,
+                            'disability_weight': get_zero,
+                            'excess_mortality_rate': get_zero,
+                           }
     )
     on_treatment.has_excess_mortality = False
 
+    # Add transitions
     susceptible.add_rate_transition(with_condition)
     with_condition.add_rate_transition(susceptible)
-    with_condition.add_rate_transition(on_treatment,
-           get_data_functions = {'transition_rate': lambda builder, state_1, state_2, : builder.data.load(
-                    f'cause.oud_consistent.treatment_initiation_rate')}
-
+    
+    with_condition.add_rate_transition(
+        on_treatment,
+        get_data_functions={
+            'transition_rate': lambda builder, state_1, state_2: builder.data.load(
+                f'cause.oud_consistent.treatment_initiation_rate')
+        }
     )
-    on_treatment.add_rate_transition(with_condition,
-           get_data_functions = {'transition_rate': lambda builder, state_1, state_2, : builder.data.load(
-                    f'cause.oud_consistent.treatment_failure_rate')}
-
+    
+    on_treatment.add_rate_transition(
+        with_condition,
+        get_data_functions={
+            'transition_rate': lambda builder, state_1, state_2: builder.data.load(
+                f'cause.oud_consistent.treatment_failure_rate')
+        }
     )
-    on_treatment.add_rate_transition(susceptible,
-           get_data_functions = {'transition_rate': lambda builder, state_1, state_2, : builder.data.load(
-                    f'cause.oud_consistent.treatment_success_rate')}
-
+    
+    on_treatment.add_rate_transition(
+        susceptible,
+        get_data_functions={
+            'transition_rate': lambda builder, state_1, state_2: builder.data.load(
+                f'cause.oud_consistent.treatment_success_rate')
+        }
     )
 
-    return RiskDiseaseModel(cause, initial_state=susceptible,
-                              states=[susceptible,
-                                      with_condition,
-                                      on_treatment
-                                     ])
+    return RiskDiseaseModel(cause, 
+                       initial_state=susceptible,
+                       states=[susceptible, with_condition, on_treatment])

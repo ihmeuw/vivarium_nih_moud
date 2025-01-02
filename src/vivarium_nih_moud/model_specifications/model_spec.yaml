@@ -7,7 +7,7 @@ components:
             - ResultsStratifier()
             - DisabilityObserver()
             # - DiseaseObserver('oud_consistent')
-            - MortalityObserver()
+            # - MortalityObserver()
     vivarium_nih_moud.components:
         - conditions.moud_model()
 
