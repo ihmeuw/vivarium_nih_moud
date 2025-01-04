@@ -16,6 +16,6 @@ def generate_constant_data(data_value):
                     'sex': sex,
                 })
                 for i in range(1_000):
-                    data[-1][f'draw_{i}'] = np.clip(data_value+np.random.uniform(0,.01), 0, 1)
+                    data[-1][f'draw_{i}'] = np.clip(data_value+np.random.uniform(0,.1), 0, 1)
     data = pd.DataFrame(data)
     return data.set_index(['sex', 'age_start', 'age_end', 'year_start', 'year_end'])

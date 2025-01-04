@@ -419,8 +419,8 @@ def generate_consistent_moud_rates(art, location: str, years):
                 ),
                 transform_to_data("ti", utils.generate_constant_data(0.0), sex, ages, [2021]), 
                 transform_to_data("ts", utils.generate_constant_data(0.0), sex, ages, [2021]), 
-                transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]), 
-                transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]), 
+                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]), 
+                # transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]), 
             ]
         )
         return df_data
