@@ -9,42 +9,31 @@ from vivarium_public_health.disease.state import BaseDiseaseState
 from .conditions import RiskDiseaseModel
 
 class HousingState(BaseDiseaseState):
-    def __init__(self, state_id: str, allow_self_transition: bool = False):
+    def __init__(self, state_id: str, allow_self_transition: bool = True):
         super().__init__(state_id, allow_self_transition)
 
-    def add_rate_transition(self, output_state, get_data_functions: Dict[str, Callable] = None, **kwargs):
-        """Override parent's add_rate_transition to remove disease-specific assumptions"""
-        if get_data_functions is None:
-            def default_rate_function(builder, input_state, output_state):
-                # Create a DataFrame with the required structure
-                return pd.DataFrame({
-                    'sex': ['Male', 'Female'],
-                    'age_start': [0, 0],
-                    'age_end': [125, 125],
-                    'year_start': [1990, 1990],
-                    'year_end': [2100, 2100],
-                    'value': [0.0, 0.0],
-                })
-            
-            get_data_functions = {
-                'transition_rate': default_rate_function
-            }
-        return super().add_rate_transition(output_state, get_data_functions, **kwargs)
-
-    def setup(self, builder: Builder) -> None:
-        """Simplified setup without disease-specific components"""
-        super().setup(builder)
-        self.clock = builder.time.clock()
+    def add_rate_transition(self, output_state):
+        rate = f'quarters.{self.state_id}_to_{output_state.state_id}.transition_rate' # key for this transition rate in the artifact
+        get_data_functions={
+            'transition_rate': lambda builder, i, o: builder.data.load(rate)
+        }
+        return super().add_rate_transition(output_state, get_data_functions)
 
 def quarters_model():
     cause = 'quarters'
 
-    housed = HousingState('housed', allow_self_transition=True)
-    unhoused = HousingState('unhoused', allow_self_transition=True)
-    incarcerated = HousingState('incarcerated', allow_self_transition=True)
+    housed = HousingState('housed')
+    unhoused = HousingState('unhoused')
+    incarcerated = HousingState('incarcerated')
 
     housed.add_rate_transition(unhoused)
+    housed.add_rate_transition(incarcerated)
+
+    unhoused.add_rate_transition(housed)
     unhoused.add_rate_transition(incarcerated)
+
+    incarcerated.add_rate_transition(housed)
+    incarcerated.add_rate_transition(unhoused)
 
     return RiskDiseaseModel(
         cause,
