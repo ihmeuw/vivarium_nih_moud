@@ -111,7 +111,7 @@ in the ``model_specifications`` directory.
 
 With this model specification file and your conda environment active, you can then run simulations by, e.g.::
 
-   (vivarium_nih_moud) :~$ simulate run -v /<REPO_INSTALLATION_DIRECTORY>/vivarium_nih_moud/src/vivarium_nih_moud/model_specifications/model_spec.yaml
+   (vivarium_nih_moud) :~$ simulate run -v src/vivarium_nih_moud/model_specifications/model_spec.yaml
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
