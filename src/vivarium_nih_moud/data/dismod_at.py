@@ -226,9 +226,9 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
         S, C, T = y
         i, r, ti, ts, tf, f, m = args
         return (
-            0 - m * S         - i * S + r * C          + ts * T         ,
-            0 - m * C - f * C + i * S - r * C - ti * C          + tf * T,
-            0 - m * T - f * T                 + ti * C - ts * T - tf * T,
+            0 - m * S - i * S + r * C + ts * T,
+            0 - m * C - f * C + i * S - r * C - ti * C + tf * T,
+            0 - m * T - f * T + ti * C - ts * T - tf * T,
         )
 
     def ode_consistency_factor(at):
