@@ -4,6 +4,7 @@ components:
         - Mortality()
     vivarium_nih_moud.components:
         - conditions.moud_model()
+        - locations.quarters_model()
     vivarium_public_health.results:
         - ResultsStratifier()
         - DisabilityObserver()
@@ -13,8 +14,8 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        # artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
-        artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
+        artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
+        # artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
 
     interpolation:
         order: 0
@@ -45,6 +46,11 @@ configuration:
             oud_consistent: cat1
             susceptible_to_oud_consistent: cat2
             on_treatment_for_oud_consistent : cat2
+    quarters:
+        state_to_risk_category_map:
+            unhoused: cat1
+            incarcerated: cat2
+            housed : cat3
 
 
     stratification:

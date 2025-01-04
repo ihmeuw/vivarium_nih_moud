@@ -13,6 +13,7 @@ from numpyro import distributions as dist
 from numpyro import infer
 
 import utils
+from utils import write_or_replace
 
 def transform_to_data(param, df_in, sex, ages, years):
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
@@ -453,17 +454,11 @@ def generate_consistent_moud_rates(art, location: str, years):
     write_or_replace(art, rate_name, df_out)
 
 
-def write_or_replace(art, key, data):
-    if key in art.keys:
-        art.replace(key, data)
-    else:
-        art.write(key, data)
-
 
 if __name__ == "__main__":
     from vivarium import Artifact
 
     location = "Washington"
-    years = 2021
+    years = [2021]
     art = Artifact("washington.hdf")
     generate_consistent_moud_rates(art, location, years)

@@ -1,5 +1,11 @@
 import numpy as np, pandas as pd
 
+def write_or_replace(art, key, data):
+    if key in art.keys:
+        art.replace(key, data)
+    else:
+        art.write(key, data)
+
 def generate_constant_data(data_value):
     ages = np.linspace(0, 100, 11, endpoint=True)
     years = [2021]
