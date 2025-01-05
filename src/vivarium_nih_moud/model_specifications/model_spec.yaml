@@ -34,11 +34,11 @@ configuration:
             year: 2040
             month: 1
             day: 1
-        step_size: 7 # Days
+        step_size: 182 # Days
     population:
         population_size: 100_000
-        initialization_age_min: 0
-        initialization_age_max: 100
+        initialization_age_min: 15
+        initialization_age_max: 50
         untracking_age: 100
     oud_consistent:
         exposure: 0.016, # HACK: this should not be used, nor necessary

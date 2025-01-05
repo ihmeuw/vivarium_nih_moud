@@ -380,6 +380,33 @@ def generate_consistent_moud_rates(art, location: str, years):
     """
     # TODO: check if the consistent rates are already in the artifact, and if so, skip rest of this function
 
+    ages = np.arange(0, 96, 5)
+    years = np.array([2020, 2025])
+    sexes = ["Male", "Female"]
+
+    # test stripped down version that does not try to be consistent
+
+    for key in {
+        "r": "cause.oud_consistent.remission_rate",
+        "ti": "cause.oud_consistent.treatment_initiation_rate",
+        "ts": "cause.oud_consistent.treatment_success_rate",
+        "tf": "cause.oud_consistent.treatment_failure_rate",
+        "tx": "cause.oud_consistent.treatment_ratio",
+    }.values():
+        data = utils.generate_constant_data(0.0)
+        utils.write_or_replace(art, key, data)
+
+    for orig_key in {
+        "i": "cause.opioid_use_disorders.incidence_rate",
+        "p": "cause.opioid_use_disorders.prevalence",
+        "f": "cause.opioid_use_disorders.excess_mortality_rate",
+        "m_all": "cause.all_causes.cause_specific_mortality_rate",
+        "csmr_with": "cause.opioid_use_disorders.cause_specific_mortality_rate",
+    }.values():
+        data = art.load(orig_key)
+        key = orig_key.replace("opioid_use_disorders", "oud_consistent")
+        utils.write_or_replace(art, key, data)
+
     # copy metadata
     for key in [
         "cause.opioid_use_disorders.restrictions",
@@ -388,9 +415,8 @@ def generate_consistent_moud_rates(art, location: str, years):
         data = art.load(key)
         write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
 
-    ages = np.arange(0, 96, 5)
-    years = np.array([2020, 2025])
-    sexes = ["Male", "Female"]
+    return
+
     key = {
         "i": "cause.opioid_use_disorders.incidence_rate",
         "p": "cause.opioid_use_disorders.prevalence",
