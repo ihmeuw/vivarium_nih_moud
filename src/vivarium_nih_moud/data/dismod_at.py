@@ -8,12 +8,12 @@ import jax.numpy as jnp
 import numpy as np
 import numpyro
 import pandas as pd
+import utils
 from diffrax import Dopri5, ODETerm, SaveAt, diffeqsolve
 from numpyro import distributions as dist
 from numpyro import infer
-
-import utils
 from utils import write_or_replace
+
 
 def transform_to_data(param, df_in, sex, ages, years):
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
@@ -444,10 +444,10 @@ def generate_consistent_moud_rates(art, location: str, years):
                     ages,
                     [2021],
                 ),
-                transform_to_data("ti", utils.generate_constant_data(0.0), sex, ages, [2021]), 
-                transform_to_data("ts", utils.generate_constant_data(0.0), sex, ages, [2021]), 
-                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]), 
-                # transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]), 
+                transform_to_data("ti", utils.generate_constant_data(0.0), sex, ages, [2021]),
+                transform_to_data("ts", utils.generate_constant_data(0.0), sex, ages, [2021]),
+                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]),
+                # transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]),
             ]
         )
         return df_data
@@ -478,7 +478,6 @@ def generate_consistent_moud_rates(art, location: str, years):
     df_out = get_rates(m, "p", 2020) * (1 - get_rates(m, "f", 2020)) * get_rates(m, "f", 2020)
     rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
     write_or_replace(art, rate_name, df_out)
-
 
 
 if __name__ == "__main__":
