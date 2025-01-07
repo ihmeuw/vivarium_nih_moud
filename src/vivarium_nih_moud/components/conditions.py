@@ -92,9 +92,9 @@ def moud_model():
 
         # Calculate on_treatment prevalence
         index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        on_treatment_prevalence = prevalence.set_index(
-            index_cols
-        ) * treatment_ratio.set_index(index_cols)
+        on_treatment_prevalence = prevalence.set_index(index_cols) * (
+            treatment_ratio.set_index(index_cols)
+        )
         return on_treatment_prevalence.reset_index()
 
     def get_zero(builder, state):
@@ -109,7 +109,6 @@ def moud_model():
             "prevalence": get_off_treatment_prevalence,
         },
     )
-    with_condition.has_excess_mortality = True
 
     # Create on_treatment state with custom prevalence data function
     on_treatment = DiseaseState(
@@ -121,7 +120,6 @@ def moud_model():
             "excess_mortality_rate": get_zero,
         },
     )
-    on_treatment.has_excess_mortality = False
 
     # Add transitions
     susceptible.add_rate_transition(with_condition)

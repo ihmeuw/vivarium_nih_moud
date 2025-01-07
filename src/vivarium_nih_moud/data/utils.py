@@ -11,7 +11,7 @@ def write_or_replace(art, key, data):
 
 
 def generate_constant_data(data_value):
-    ages = [20]
+    ages = np.arange(0, 101, 5)
     years = [2021]
     sexes = ["Male", "Female"]
     data = []
@@ -29,7 +29,7 @@ def generate_constant_data(data_value):
                 )
                 for i in range(1_000):
                     data[-1][f"draw_{i}"] = np.clip(
-                        data_value + np.random.uniform(0, 0.1), 0, 1
+                        data_value + np.random.uniform(0, 0.01), 0, 1
                     )
     data = pd.DataFrame(data)
     return data.set_index(["sex", "age_start", "age_end", "year_start", "year_end"])

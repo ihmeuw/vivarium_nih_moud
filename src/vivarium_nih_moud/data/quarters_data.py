@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-import utils
+
+from vivarium_nih_moud.data import utils
 
 
 def generate_quarters_data(art, location: str, years):

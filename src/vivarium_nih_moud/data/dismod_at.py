@@ -8,11 +8,12 @@ import jax.numpy as jnp
 import numpy as np
 import numpyro
 import pandas as pd
-import utils
 from diffrax import Dopri5, ODETerm, SaveAt, diffeqsolve
 from numpyro import distributions as dist
 from numpyro import infer
-from utils import write_or_replace
+
+from vivarium_nih_moud.data import utils
+from vivarium_nih_moud.data.utils import write_or_replace
 
 
 def transform_to_data(param, df_in, sex, ages, years):
@@ -228,9 +229,12 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
         S, C, T = y
         i, r, ti, ts, tf, f, m = args
         return (
-            0 - m * S - i * S + r * C + ts * T,
-            0 - m * C - f * C + i * S - r * C - ti * C + tf * T,
-            0 - m * T - f * T + ti * C - ts * T - tf * T,
+            # don't reformat this equation block when running `isort .; black .`
+            # fmt: off
+            0 - m * S         - i * S + r * C          + ts * T         ,
+            0 - m * C - f * C + i * S - r * C - ti * C          + tf * T,
+            0 - m * T                         + ti * C - ts * T - tf * T,
+            # fmt: on
         )
 
     def ode_consistency_factor(at):
@@ -275,10 +279,11 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
 
 
 class ConsistentModel:
-    def __init__(self, sex, ages, years):
+    def __init__(self, sex, ages, years, max_value_dict={}):
         self.sex = sex
         self.ages = ages
         self.years = years
+        self.max_value_dict = max_value_dict
 
     def fit(self, df_data):
         # expect this to take about 2 minutes to run
@@ -296,6 +301,7 @@ class ConsistentModel:
                         loc=jnp.zeros((len(ages), len(years))),
                         scale=jnp.ones((len(ages), len(years))),
                         low=0.0,
+                        high=self.max_value_dict.get(param, 0.5),
                     ),
                 )
             # TODO: consider moving knots of p to midpoints
@@ -323,7 +329,7 @@ class ConsistentModel:
                         f"r_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"ti_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"ts_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"tf_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"tf_{group}": jnp.ones([len(ages), len(years)]) * 1.00,
                     }
                 ),
             ),
@@ -384,29 +390,6 @@ def generate_consistent_moud_rates(art, location: str, years):
     years = np.array([2020, 2025])
     sexes = ["Male", "Female"]
 
-    # test stripped down version that does not try to be consistent
-
-    for key in {
-        "r": "cause.oud_consistent.remission_rate",
-        "ti": "cause.oud_consistent.treatment_initiation_rate",
-        "ts": "cause.oud_consistent.treatment_success_rate",
-        "tf": "cause.oud_consistent.treatment_failure_rate",
-        "tx": "cause.oud_consistent.treatment_ratio",
-    }.values():
-        data = utils.generate_constant_data(0.0)
-        utils.write_or_replace(art, key, data)
-
-    for orig_key in {
-        "i": "cause.opioid_use_disorders.incidence_rate",
-        "p": "cause.opioid_use_disorders.prevalence",
-        "f": "cause.opioid_use_disorders.excess_mortality_rate",
-        "m_all": "cause.all_causes.cause_specific_mortality_rate",
-        "csmr_with": "cause.opioid_use_disorders.cause_specific_mortality_rate",
-    }.values():
-        data = art.load(orig_key)
-        key = orig_key.replace("opioid_use_disorders", "oud_consistent")
-        utils.write_or_replace(art, key, data)
-
     # copy metadata
     for key in [
         "cause.opioid_use_disorders.restrictions",
@@ -414,8 +397,6 @@ def generate_consistent_moud_rates(art, location: str, years):
     ]:
         data = art.load(key)
         write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
-
-    return
 
     key = {
         "i": "cause.opioid_use_disorders.incidence_rate",
@@ -436,6 +417,7 @@ def generate_consistent_moud_rates(art, location: str, years):
             [
                 transform_to_data("p", art.load(key["p"]), sex, ages, [2021]),
                 transform_to_data("i", art.load(key["i"]), sex, ages, [2021]),
+                transform_to_data("r", utils.generate_constant_data(0.05), sex, ages, [2021]),
                 transform_to_data("f", art.load(key["f"]), sex, ages, [2021]),
                 transform_to_data(
                     "m",
@@ -444,10 +426,14 @@ def generate_consistent_moud_rates(art, location: str, years):
                     ages,
                     [2021],
                 ),
-                transform_to_data("ti", utils.generate_constant_data(0.0), sex, ages, [2021]),
-                transform_to_data("ts", utils.generate_constant_data(0.0), sex, ages, [2021]),
-                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]),
-                # transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]),
+                #transform_to_data(
+                #    "ti", utils.generate_constant_data(0.25), sex, ages, [2021]
+                #),
+                # transform_to_data("ts", utils.generate_constant_data(0.05), sex, ages, [2021]),
+                #transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]),
+                # transform_to_data(
+                #     "tx", utils.generate_constant_data(0.15), sex, ages, [2021]
+                # ),
             ]
         )
         return df_data
@@ -462,7 +448,7 @@ def generate_consistent_moud_rates(art, location: str, years):
     # fit model separately for Male and Female
     m = {}
     for sex in sexes:
-        m[sex] = ConsistentModel(sex, ages, years)
+        m[sex] = ConsistentModel(sex, ages, years, max_value_dict={'tf':2.0})
         m[sex].fit(oud_data(sex))
 
     # store consistent rates in artifact
@@ -475,7 +461,9 @@ def generate_consistent_moud_rates(art, location: str, years):
         write_or_replace(art, rate_name, df_out)
 
     # then do cause specific mortality rate
-    df_out = get_rates(m, "p", 2020) * (1 - get_rates(m, "f", 2020)) * get_rates(m, "f", 2020)
+    df_out = (
+        get_rates(m, "p", 2020) * (1 - get_rates(m, "tx", 2020)) * get_rates(m, "f", 2020)
+    )
     rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
     write_or_replace(art, rate_name, df_out)
 

@@ -14,8 +14,8 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
-        # artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
+        # artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
+        artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
 
     interpolation:
         order: 0
@@ -37,7 +37,7 @@ configuration:
         step_size: 182 # Days
     population:
         population_size: 100_000
-        initialization_age_min: 15
+        initialization_age_min: 0
         initialization_age_max: 50
         untracking_age: 100
     oud_consistent:
