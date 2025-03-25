@@ -9,13 +9,14 @@ components:
         - ResultsStratifier()
         - DisabilityObserver()
         - DiseaseObserver('oud_consistent')
+        - DiseaseObserver('quarters')
         - MortalityObserver()
 
 configuration:
     input_data:
         input_draw_number: 0
-        # artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
-        artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
+        artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
+        # artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
 
     interpolation:
         order: 0
