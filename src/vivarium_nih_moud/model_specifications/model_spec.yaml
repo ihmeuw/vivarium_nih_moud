@@ -1,20 +1,21 @@
 components:
-    vivarium_public_health:
-        population:
-            - BasePopulation()
-            - Mortality()
-        disease:
-            - SIS('oud_consistent')
-        results:
-            - ResultsStratifier()
-            - DisabilityObserver()
-            - DiseaseObserver('oud_consistent')
-            - MortalityObserver()
+    vivarium_public_health.population:
+        - BasePopulation()
+        - Mortality()
+    vivarium_nih_moud.components:
+        - conditions.moud_model()
+    vivarium_public_health.results:
+        - ResultsStratifier()
+        - DisabilityObserver()
+        - DiseaseObserver('oud_consistent')
+        - MortalityObserver()
 
 configuration:
     input_data:
-        input_draw_number: 69
+        input_draw_number: 0
+        # artifact_path: /home/abie/vivarium_nih_moud/washington.hdf
         artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
+
     interpolation:
         order: 0
         extrapolate: True
@@ -38,6 +39,13 @@ configuration:
         initialization_age_min: 0
         initialization_age_max: 100
         untracking_age: 100
+    oud_consistent:
+        exposure: 0.016, # HACK: this should not be used, nor necessary
+        state_to_risk_category_map:
+            oud_consistent: cat1
+            susceptible_to_oud_consistent: cat2
+            on_treatment_for_oud_consistent : cat2
+
 
     stratification:
         default:

@@ -15,9 +15,10 @@ from typing import Optional, Tuple, Union
 import click
 from loguru import logger
 
-from vivarium_nih_moud.constants import data_keys, metadata
-from vivarium_nih_moud.tools.app_logging import add_logging_sink, decode_status
-from vivarium_nih_moud.utilities import sanitize_location
+from ..constants import data_keys, metadata
+from ..data import dismod_at
+from ..tools.app_logging import add_logging_sink, decode_status
+from ..utilities import sanitize_location
 
 
 def running_from_cluster() -> bool:
@@ -235,7 +236,7 @@ def build_single_location_artifact(
             logger.info(f"   - Loading and writing {key} data")
             builder.load_and_write_data(artifact, key, location, years, key in replace_keys)
 
-    builder.generate_consistent_moud_rates(artifact, location, years)
+    dismod_at.generate_consistent_moud_rates(artifact, location, years)
 
     logger.info(f"**Done building -- {location}**")
 

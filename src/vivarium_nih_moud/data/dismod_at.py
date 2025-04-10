@@ -12,6 +12,7 @@ from diffrax import Dopri5, ODETerm, SaveAt, diffeqsolve
 from numpyro import distributions as dist
 from numpyro import infer
 
+import utils
 
 def transform_to_data(param, df_in, sex, ages, years):
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
@@ -41,12 +42,6 @@ def transform_to_data(param, df_in, sex, ages, years):
             results.append(row)
 
     return pd.DataFrame(results)
-
-
-def artifact_to_data_dict(art, sex, ages, years):
-    data_dict = {}
-    for param in art.keys():
-        data_dict[param] = transform_to_data(param, art.load(key), sex, ages, years)
 
 
 def transform_to_prior(df, sex, ages, years, location):
@@ -188,6 +183,15 @@ def single_location_model(
     r = at_param_w_data(
         f"r_{group}", ages, years, knot_val_dict["r"], df_data[df_data.measure == "r"]
     )
+    ti = at_param_w_data(
+        f"ti_{group}", ages, years, knot_val_dict["ti"], df_data[df_data.measure == "ti"]
+    )
+    ts = at_param_w_data(
+        f"ts_{group}", ages, years, knot_val_dict["ts"], df_data[df_data.measure == "ts"]
+    )
+    tf = at_param_w_data(
+        f"tf_{group}", ages, years, knot_val_dict["tf"], df_data[df_data.measure == "tf"]
+    )
     f = at_param_w_data(
         f"f_{group}", ages, years, knot_val_dict["f"], df_data[df_data.measure == "f"]
     )
@@ -204,16 +208,29 @@ def single_location_model(
         method="constant",
     )
 
+    tx = at_param_w_data(
+        f"tx_{group}",
+        ages,
+        years,
+        knot_val_dict["tx"],
+        df_data[df_data.measure == "tx"],
+        method="constant",
+    )
+
     if include_consistency_constraints:
-        ode_model(group, p, i, r, f, m, sigma=0.01, ages=ages, years=years)
-    return dict(p=p, i=i, f=f, m=m, r=r)
+        ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma=0.01, ages=ages, years=years)
+    return dict(p=p, i=i, f=f, m=m, r=r, ti=ti, ts=ts, tf=tf)
 
 
-def ode_model(group, p, i, r, f, m, sigma, ages, years):
+def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
     def dismod_f(t, y, args):
-        S, C = y
-        i, r, f, m = args
-        return (-m * S - i * S + r * C, -m * C + i * S - r * C - f * C)
+        S, C, T = y
+        i, r, ti, ts, tf, f, m = args
+        return (
+            0 - m * S - i * S + r * C + ts * T,
+            0 - m * C - f * C + i * S - r * C - ti * C + tf * T,
+            0 - m * T - f * T + ti * C - ts * T - tf * T,
+        )
 
     def ode_consistency_factor(at):
         a, t = at
@@ -222,7 +239,7 @@ def ode_model(group, p, i, r, f, m, sigma, ages, years):
         solver = Dopri5()
         saveat = SaveAt(t0=False, t1=True)
 
-        y0 = (1 - p(a, t), p(a, t))
+        y0 = (1 - p(a, t), p(a, t) * (1 - tx(a, t)), p(a, t) * tx(a, t))
         solution = diffeqsolve(
             term,
             solver,
@@ -231,11 +248,12 @@ def ode_model(group, p, i, r, f, m, sigma, ages, years):
             dt0=0.5,
             y0=y0,
             saveat=saveat,
-            args=[i(a, t), r(a, t), f(a, t), m(a, t)],
+            args=[i(a, t), r(a, t), ti(a, t), ts(a, t), tf(a, t), f(a, t), m(a, t)],
         )
 
-        S, C = solution.ys
-        difference = jnp.log(C / (S + C)) - jnp.log(p(a + dt, t + dt))
+        S, C, T = solution.ys
+        difference = jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))
+        difference += jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt))
         return difference
 
     # Vectorize the ode_consistency_factor function
@@ -270,7 +288,7 @@ class ConsistentModel:
 
         def model():
             knot_val_dict = {}
-            for param in "pifmr":
+            for param in ["p", "tx", "i", "f", "m", "r", "ti", "tf", "ts"]:
                 knot_val_dict[param] = numpyro.sample(
                     f"{param}_{group}",
                     dist.TruncatedNormal(
@@ -297,10 +315,14 @@ class ConsistentModel:
                 init_strategy=numpyro.infer.init_to_value(
                     values={
                         f"p_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"tx_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"i_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"f_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"m_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"r_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"ti_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"ts_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"tf_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                     }
                 ),
             ),
@@ -316,7 +338,6 @@ class ConsistentModel:
         self.samples = sampler.get_samples()
 
     def get_rate(self, param, year):
-        # import pdb; pdb.set_trace()
         assert hasattr(self, "samples"), "Must run fit() first"
         group = ""
 
@@ -340,3 +361,109 @@ class ConsistentModel:
         return pd.DataFrame(rate_table).set_index(
             ["sex", "age_start", "age_end", "year_start", "year_end"]
         )
+
+
+def generate_consistent_moud_rates(art, location: str, years):
+    """Generates consistent rates for MOUD data.
+
+    Parameters
+    ----------
+    art
+        The artifact to read from and write to.
+    location
+        The location associated with the data to load and the artifact to
+        write to.
+    years
+        The years to load data for.
+
+    """
+    # TODO: check if the consistent rates are already in the artifact, and if so, skip rest of this function
+
+    # copy metadata
+    for key in [
+        "cause.opioid_use_disorders.restrictions",
+        "cause.opioid_use_disorders.disability_weight",
+    ]:
+        data = art.load(key)
+        write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
+
+    ages = np.arange(0, 96, 5)
+    years = np.array([2020, 2025])
+    sexes = ["Male", "Female"]
+    key = {
+        "i": "cause.opioid_use_disorders.incidence_rate",
+        "p": "cause.opioid_use_disorders.prevalence",
+        "f": "cause.opioid_use_disorders.excess_mortality_rate",
+        "m_all": "cause.all_causes.cause_specific_mortality_rate",
+        "csmr_with": "cause.opioid_use_disorders.cause_specific_mortality_rate",
+        "pop": "population.structure",
+        "r": "cause.oud_consistent.remission_rate",
+        "ti": "cause.oud_consistent.treatment_initiation_rate",
+        "ts": "cause.oud_consistent.treatment_success_rate",
+        "tf": "cause.oud_consistent.treatment_failure_rate",
+        "tx": "cause.oud_consistent.treatment_ratio",
+    }
+
+    def oud_data(sex):
+        df_data = pd.concat(
+            [
+                transform_to_data("p", art.load(key["p"]), sex, ages, [2021]),
+                transform_to_data("i", art.load(key["i"]), sex, ages, [2021]),
+                transform_to_data("f", art.load(key["f"]), sex, ages, [2021]),
+                transform_to_data(
+                    "m",
+                    art.load(key["m_all"]) - art.load(key["csmr_with"]),
+                    sex,
+                    ages,
+                    [2021],
+                ),
+                transform_to_data("ti", utils.generate_constant_data(0.0), sex, ages, [2021]), 
+                transform_to_data("ts", utils.generate_constant_data(0.0), sex, ages, [2021]), 
+                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]), 
+                # transform_to_data("tx", utils.generate_constant_data(0.0), sex, ages, [2021]), 
+            ]
+        )
+        return df_data
+
+    def get_rates(model_dict, rate_type, year):
+        df_out = []
+        for model in model_dict.values():
+            df_out.append(model.get_rate(rate_type, year))
+        df_out = pd.concat(df_out)
+        return df_out
+
+    # fit model separately for Male and Female
+    m = {}
+    for sex in sexes:
+        m[sex] = ConsistentModel(sex, ages, years)
+        m[sex].fit(oud_data(sex))
+
+    # store consistent rates in artifact
+    for rate_type in ["p", "tx", "i", "f", "r", "ti", "tf", "ts"]:
+        # generate data for k
+        df_out = get_rates(m, rate_type, 2020)
+        # store generated data in artifact
+        rate_name = key[rate_type]
+        rate_name = rate_name.replace("opioid_use_disorders", "oud_consistent")
+        write_or_replace(art, rate_name, df_out)
+
+    # then do cause specific mortality rate
+    df_out = get_rates(m, "p", 2020) * (1 - get_rates(m, "f", 2020)) * get_rates(m, "f", 2020)
+    rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
+    write_or_replace(art, rate_name, df_out)
+
+
+def write_or_replace(art, key, data):
+    if key in art.keys:
+        art.replace(key, data)
+    else:
+        art.write(key, data)
+
+
+if __name__ == "__main__":
+    from vivarium import Artifact
+
+    location = "Washington"
+    years = 2021
+    art = Artifact("washington.hdf")
+    generate_consistent_moud_rates(art, location, years)

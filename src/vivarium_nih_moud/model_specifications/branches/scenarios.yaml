@@ -1,5 +1,5 @@
-input_draw_count: 20
-random_seed_count: 10
+input_draw_count: 50
+random_seed_count: 1
 
 branches:
 # TODO change to name of intervention
