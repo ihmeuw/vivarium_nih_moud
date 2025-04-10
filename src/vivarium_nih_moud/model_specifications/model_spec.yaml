@@ -65,3 +65,9 @@ configuration:
         # mortality:
         #     include:
         #     exclude:
+        oud_consistent:
+            include:
+                - 'quarters'
+        quarters:
+            include:
+                - 'oud_consistent'

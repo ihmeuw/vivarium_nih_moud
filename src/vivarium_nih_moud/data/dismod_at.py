@@ -453,6 +453,8 @@ def generate_consistent_moud_rates(art, location: str, years):
 
     # store consistent rates in artifact
     for rate_type in ["p", "tx", "i", "f", "r", "ti", "tf", "ts"]:
+        if rate_type == "r":
+            breakpoint()
         # generate data for k
         df_out = get_rates(m, rate_type, 2020)
         # store generated data in artifact

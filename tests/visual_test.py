@@ -90,6 +90,8 @@ def validation_plots(sim, art):
         return (age_group.left + age_group.right) / 2
 
     for row, (metric_name, data, artifact_data) in enumerate(metrics):
+        # if metric_name == 'Remission':
+        #     breakpoint()
         for col, sex in enumerate(sexes):
             ax = axes[row, col]
             for year in years:
