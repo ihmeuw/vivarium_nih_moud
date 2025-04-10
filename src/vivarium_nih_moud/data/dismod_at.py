@@ -426,11 +426,11 @@ def generate_consistent_moud_rates(art, location: str, years):
                     ages,
                     [2021],
                 ),
-                #transform_to_data(
+                # transform_to_data(
                 #    "ti", utils.generate_constant_data(0.25), sex, ages, [2021]
-                #),
+                # ),
                 # transform_to_data("ts", utils.generate_constant_data(0.05), sex, ages, [2021]),
-                #transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]),
+                # transform_to_data("tf", utils.generate_constant_data(1.0), sex, ages, [2021]),
                 # transform_to_data(
                 #     "tx", utils.generate_constant_data(0.15), sex, ages, [2021]
                 # ),
@@ -448,7 +448,7 @@ def generate_consistent_moud_rates(art, location: str, years):
     # fit model separately for Male and Female
     m = {}
     for sex in sexes:
-        m[sex] = ConsistentModel(sex, ages, years, max_value_dict={'tf':2.0})
+        m[sex] = ConsistentModel(sex, ages, years, max_value_dict={"tf": 2.0})
         m[sex].fit(oud_data(sex))
 
     # store consistent rates in artifact
