@@ -4,19 +4,16 @@ components:
             - BasePopulation()
             - Mortality()
         disease:
-            - SIS('opioid_use_disorders')
+            - SIS('oud_consistent')
         results:
-            - DiseaseObserver('opioid_use_disorders')
             - ResultsStratifier()
             - DisabilityObserver()
+            - DiseaseObserver('oud_consistent')
             - MortalityObserver()
-
-    # Causes an error if left empty. Uncomment when you have components. 
-    # vivarium_nih_moud.components:
 
 configuration:
     input_data:
-        input_draw_number: 0
+        input_draw_number: 69
         artifact_path: /mnt/team/simulation_science/pub/training/abie/artifacts/washington.hdf
     interpolation:
         order: 0
@@ -24,19 +21,20 @@ configuration:
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time', 'age']
-        random_seed: 0
+        random_seed: 4344
+        additional_seed: 169
     time:
         start:
             year: 2019
             month: 1
             day: 1
         end:
-            year: 2019
-            month: 2
+            year: 2040
+            month: 1
             day: 1
         step_size: 7 # Days
     population:
-        population_size: 100
+        population_size: 100_000
         initialization_age_min: 0
         initialization_age_max: 100
         untracking_age: 100
@@ -52,5 +50,3 @@ configuration:
         # mortality:
         #     include:
         #     exclude:
-    opioid_use_disorders:
-        remission_rate: 2.0

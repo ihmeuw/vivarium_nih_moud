@@ -12,12 +12,13 @@ Some degree of verbosity/boilerplate is fine in the interest of transparency.
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 from vivarium.framework.artifact import Artifact, EntityKey
 
-from vivarium_nih_moud.constants import data_keys
-from vivarium_nih_moud.data import loader
+from ..constants import data_keys
+from ..data import dismod_at, loader
 
 
 def open_artifact(output_path: Path, location: str) -> Artifact:
@@ -127,3 +128,94 @@ def write_data_by_draw(artifact: Artifact, key: str, data: pd.DataFrame):
         data = data.reset_index(drop=True)
         for c in data.columns:
             store.put(f"{key.path}/{c}", data[c])
+
+
+def generate_consistent_moud_rates(art: Artifact, location: str, years: Optional[str]):
+    """Generates consistent rates for MOUD data.
+
+    Parameters
+    ----------
+    art
+        The artifact to read from and write to.
+    location
+        The location associated with the data to load and the artifact to
+        write to.
+    years
+        The years to load data for.
+
+    """
+    # TODO: check if the consistent rates are already in the artifact, and if so, skip rest of this function
+
+    # copy metadata
+    for key in [
+        "cause.opioid_use_disorders.restrictions",
+        "cause.opioid_use_disorders.disability_weight",
+    ]:
+        data = art.load(key)
+        write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
+
+    ages = np.arange(0, 96, 5)
+    years = np.array([2020, 2025])
+    sexes = ["Male", "Female"]
+    key = {
+        "i": "cause.opioid_use_disorders.incidence_rate",
+        "p": "cause.opioid_use_disorders.prevalence",
+        "f": "cause.opioid_use_disorders.excess_mortality_rate",
+        "m_all": "cause.all_causes.cause_specific_mortality_rate",
+        "csmr_with": "cause.opioid_use_disorders.cause_specific_mortality_rate",
+        "pop": "population.structure",
+    }
+
+    def oud_data(sex):
+        df_data = pd.concat(
+            [
+                dismod_at.transform_to_data("p", art.load(key["p"]), sex, ages, [2021]),
+                dismod_at.transform_to_data("i", art.load(key["i"]), sex, ages, [2021]),
+                dismod_at.transform_to_data("f", art.load(key["f"]), sex, ages, [2021]),
+                dismod_at.transform_to_data(
+                    "m",
+                    art.load(key["m_all"]) - art.load(key["csmr_with"]),
+                    sex,
+                    ages,
+                    [2021],
+                ),
+            ]
+        )
+        return df_data
+
+    def get_rates(model_dict, rate_type, year):
+        df_out = []
+        for model in model_dict.values():
+            df_out.append(model.get_rate(rate_type, year))
+        df_out = pd.concat(df_out)
+        return df_out
+
+    # fit model separately for Male and Female
+    m = {}
+    for sex in sexes:
+        m[sex] = dismod_at.ConsistentModel(sex, ages, years)
+        m[sex].fit(oud_data(sex))
+
+    # store consistent rates in artifact
+    for rate_type in "ipfr":
+        # generate data for k
+        df_out = get_rates(m, rate_type, 2020)
+        # store generated data in artifact
+        if rate_type != "r":
+            rate_name = key[rate_type]
+        else:
+            rate_name = "cause.opioid_use_disorders.remission_rate"
+        rate_name = rate_name.replace("opioid_use_disorders", "oud_consistent")
+        write_or_replace(art, rate_name, df_out)
+
+    # then do cause specific mortality rate
+    df_out = get_rates(m, "p", 2020) * get_rates(m, "f", 2020)
+    rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
+    write_or_replace(art, rate_name, df_out)
+
+
+def write_or_replace(art, key, data):
+    if key in art.keys:
+        art.replace(key, data)
+    else:
+        art.write(key, data)
