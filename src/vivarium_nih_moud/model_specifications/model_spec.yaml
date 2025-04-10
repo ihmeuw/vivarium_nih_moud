@@ -5,6 +5,9 @@ components:
     vivarium_nih_moud.components:
         - conditions.moud_model()
         - locations.quarters_model()
+    vivarium_public_health.risks:
+        - RiskEffect('disease_model.quarters',
+                "rate_transition.oud_consistent__to__on_treatment_for_oud_consistent.transition_rate")
     vivarium_public_health.results:
         - ResultsStratifier()
         - DisabilityObserver()
