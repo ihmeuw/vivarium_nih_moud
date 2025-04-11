@@ -10,31 +10,16 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.utilities import EntityString
-from vivarium_public_health.risks import Risk
+from vivarium_public_health.risks import Risk, RiskEffect
 
-class RiskDiseaseModel(DiseaseModel, Risk):
+class RiskDiseaseEffect(RiskEffect):
+    pass
+
+class RiskDiseaseModel(DiseaseModel):
     @property
     def name(self):
         return f"disease_model.{self.cause}"
-    
-    def __init__(self, cause, initial_state, states):
-        """
-        Initialize the RiskDiseaseModel.
-
-        Parameters
-        ----------
-        cause : str
-            The name of the cause/disease/state_machine being modeled.
-            This will be used as the 'state_column' name for the disease model
-            and also as the 'risk' identifier for the Risk base class.
-        initial_state : State
-        states : list
-            A list of state names or State objects defining the model states.
-            Passed to the DiseaseModel base class.
-        """
-        super().__init__(cause=cause, initial_state=initial_state, states=states)
-        super().__init__(risk=cause)
-        
+            
     def setup(self, builder):
         super(DiseaseModel, self).setup(builder)
 
@@ -170,6 +155,6 @@ def moud_model():
         },
     )
 
-    return RiskDiseaseModel(
+    return DiseaseModel(
         cause=cause, initial_state=susceptible, states=[susceptible, with_condition, on_treatment]
     )
