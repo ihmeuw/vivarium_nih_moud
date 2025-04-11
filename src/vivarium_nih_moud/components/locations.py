@@ -54,7 +54,6 @@ from vivarium.framework.values import Pipeline
 from vivarium_public_health.disease import DiseaseModel
 from vivarium_public_health.utilities import EntityString
 
-
 class DiseaseRisk(Component):
     """A component that maps disease states to risk exposure categories.
     
@@ -78,8 +77,9 @@ class DiseaseRisk(Component):
         """
         super().__init__()
         self.cause = EntityString(f"cause.{cause}")
+        # Use proper EntityString format for risk name
         self.risk = EntityString(f"risk_factor.{cause}_risk")
-        self.exposure_pipeline_name = f"{self.risk_name}.exposure"
+        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
         
         self.state_mapping = state_mapping
         # Create reverse mapping from disease state to risk category
@@ -116,6 +116,9 @@ class DiseaseRisk(Component):
         
         # Map disease states to risk categories
         exposure = population[self.cause.name].map(self.reverse_mapping)
+        
+        # Set a proper name for the exposure Series
+        exposure.name = self.exposure_pipeline_name
         
         return exposure
 
