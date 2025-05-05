@@ -1,12 +1,18 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.population import SimulantData
+from vivarium.framework.values import Pipeline
+
+from vivarium_public_health.disease import DiseaseModel
 from vivarium_public_health.disease.state import BaseDiseaseState
+from vivarium_public_health.utilities import EntityString
 
 from .conditions import RiskDiseaseModel
-from vivarium_public_health.disease import DiseaseModel
 
 
 class HousingState(BaseDiseaseState):
@@ -20,39 +26,6 @@ class HousingState(BaseDiseaseState):
         }
         return super().add_rate_transition(output_state, get_data_functions)
 
-
-def quarters_model():
-    cause = "quarters"
-
-    housed = HousingState("housed")
-    unhoused = HousingState("unhoused")
-    incarcerated = HousingState("incarcerated")
-
-    housed.add_rate_transition(unhoused)
-    housed.add_rate_transition(incarcerated)
-
-    unhoused.add_rate_transition(housed)
-    unhoused.add_rate_transition(incarcerated)
-
-    incarcerated.add_rate_transition(housed)
-    incarcerated.add_rate_transition(unhoused)
-
-    return DiseaseModel(
-        cause,
-        initial_state=housed,
-        states=[housed, unhoused, incarcerated],
-    )
-
-
-from typing import Dict, List, Optional
-
-import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium.framework.values import Pipeline
-from vivarium_public_health.disease import DiseaseModel
-from vivarium_public_health.utilities import EntityString
 
 class DiseaseRisk(Component):
     """A component that maps disease states to risk exposure categories.
@@ -121,6 +94,29 @@ class DiseaseRisk(Component):
         exposure.name = self.exposure_pipeline_name
         
         return exposure
+
+
+def quarters_model():
+    cause = "quarters"
+
+    housed = HousingState("housed")
+    unhoused = HousingState("unhoused")
+    incarcerated = HousingState("incarcerated")
+
+    housed.add_rate_transition(unhoused)
+    housed.add_rate_transition(incarcerated)
+
+    unhoused.add_rate_transition(housed)
+    unhoused.add_rate_transition(incarcerated)
+
+    incarcerated.add_rate_transition(housed)
+    incarcerated.add_rate_transition(unhoused)
+
+    return DiseaseModel(
+        cause,
+        initial_state=housed,
+        states=[housed, unhoused, incarcerated],
+    )
 
 
 def quarters_risk():
