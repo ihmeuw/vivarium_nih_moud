@@ -127,3 +127,52 @@ def quarters_risk():
         cat2='incarcerated', 
         cat3='housed'
     )
+
+class SimpleRiskEffect(Component):
+    """A simple risk effect component that applies a multiplicative relative risk."""
+    
+    def __init__(self, risk_name: str, affected_pipeline_name: str):
+        """
+        Parameters
+        ----------
+        risk_name : str
+            The name of the risk factor.
+        affected_pipeline_name : str
+            The name of the pipeline that is affected by the risk.
+        """
+        super().__init__()
+        self.risk = EntityString(f"risk_factor.{risk_name}")
+        self.affected_pipeline_name = affected_pipeline_name
+        
+    def setup(self, builder: Builder) -> None:
+        """Set up the component."""
+        # Get the risk exposure pipeline
+        self.risk_exposure_pipeline = builder.value.get_value(
+            self.risk.name + ".exposure"
+        )
+        self.affected_pipeline = builder.value.get_value(
+            self.affected_pipeline_name
+        )
+        
+        # Add modified to the risk effect pipeline
+        self.risk_effect = builder.value.register_value_modifier(
+            self.affected_pipeline_name,
+            modifier=self.apply_risk_effect,
+            component=self,
+            requires_columns=[self.risk.name],
+        )
+        #     f"{self.risk.name}.effect",
+        #     source=self.apply_risk_effect,
+        #     component=self,
+        #     # requires_columns=[self.cause.name],
+        #     # required_resources=
+        # )
+
+    def apply_risk_effect(self, index: pd.Index, pipeline_value) -> pd.Series:
+        """Apply the risk effect to the affected pipeline."""
+        # Get the risk exposure
+        risk_exposure = self.risk_exposure_pipeline(index)
+        breakpoint()
+        # Apply the risk effect (multiplicative relative risk)
+        pipeline_value[risk_exposure == 'cat2'] *= 10
+        return pipeline_value

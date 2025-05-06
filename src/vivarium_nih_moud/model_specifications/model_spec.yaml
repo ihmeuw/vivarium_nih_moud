@@ -6,8 +6,8 @@ components:
         - conditions.moud_model()
         - locations.quarters_model()
         - locations.quarters_risk()
-        # - conditions.RiskDiseaseEffect('disease_model.quarters',
-        #         "rate_transition.oud_consistent__to__on_treatment_for_oud_consistent.transition_rate")
+        - locations.SimpleRiskEffect('quarters_risk',
+                'oud_consistent_to_on_treatment_for_oud_consistent.transition_rate')
     vivarium_public_health.results:
         - ResultsStratifier()
         - DisabilityObserver()
