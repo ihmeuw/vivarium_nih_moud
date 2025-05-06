@@ -172,7 +172,8 @@ class SimpleRiskEffect(Component):
         """Apply the risk effect to the affected pipeline."""
         # Get the risk exposure
         risk_exposure = self.risk_exposure_pipeline(index)
-        breakpoint()
+        # breakpoint()
         # Apply the risk effect (multiplicative relative risk)
+        pipeline_value[risk_exposure == 'cat1'] *= 0.10
         pipeline_value[risk_exposure == 'cat2'] *= 10
         return pipeline_value
