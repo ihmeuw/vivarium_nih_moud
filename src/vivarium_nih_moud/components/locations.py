@@ -129,8 +129,28 @@ def quarters_risk():
     )
 
 class SimpleRiskEffect(Component):
-    """A simple risk effect component that applies a multiplicative relative risk."""
+    """A simple risk effect component that applies a multiplicative relative risk for categorical exposures."""
     
+    CONFIGURATION_DEFAULTS = {
+        "effect_of_risk_on_target": {
+            "relative_risk": {
+                "cat1": 2.0,
+                "cat2": 1.0,
+            }
+        }
+    }
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Dict]:
+        """Return configuration defaults for this component."""
+        return {self.config_name: self.CONFIGURATION_DEFAULTS["effect_of_risk_on_target"]}
+
+    @property
+    def columns_required(self):
+        """Declare columns required by this component."""
+        # This ensures we tell Vivarium we need the risk exposure column
+        return ["quarters", f"{self.risk.name}_exposure"]  
+
     def __init__(self, risk_name: str, affected_pipeline_name: str):
         """
         Parameters
@@ -144,40 +164,63 @@ class SimpleRiskEffect(Component):
         self.risk = EntityString(f"risk_factor.{risk_name}")
         self.affected_pipeline_name = affected_pipeline_name
 
-        self.relative_risk_mapping = {
-            'cat1': 0.5,
-            'cat2': 2.0,
-            'cat3': 1.0
-        }
+        self.config_name = f"effect_of_{self.risk.name}_on_{self.affected_pipeline_name}".replace('.transition_rate', '')
+
+        self.paf_calculated = False
+        self.paf_value = 0.0
         
     def setup(self, builder: Builder) -> None:
         """Set up the component."""
+        # Get configuration values for relative risk
+        self.relative_risk_mapping = builder.configuration[self.config_name]["relative_risk"].to_dict()
+
         # Get the risk exposure pipeline
         self.risk_exposure_pipeline = builder.value.get_value(
-            self.risk.name + ".exposure"
+            f"{self.risk.name}.exposure"
         )
-        self.affected_pipeline = builder.value.get_value(
-            self.affected_pipeline_name
-        )
-        
-        # Add modified to the risk effect pipeline
-        self.risk_effect = builder.value.register_value_modifier(
+
+        # Add modifier to the risk effect pipeline
+        builder.value.register_value_modifier(
             self.affected_pipeline_name,
             modifier=self.apply_risk_effect,
-            component=self,
-            requires_columns=[self.risk.name],
+            requires_values=[f"{self.risk.name}.exposure"]
         )
+
+    def calculate_paf(self, s_relative_risk: pd.Series) -> None:
+        """
+        Calculate the population attributable fraction (PAF) at the start of the simulation.
+        
+        PAF = 1-1/E[RR]
+        """
+        # breakpoint()
+        assert not s_relative_risk.isnull().any(), f"Relative risk series contains NaN values, check config {self.config_name}.relative_risk for missing categories."
+        if s_relative_risk.std() == 0:
+            return # not yet initialized
+        # FIXME: this does not run for long enough to get to steady state
+        expected_rr = s_relative_risk.mean()
+        self.paf_value = 1 - 1 / expected_rr
+        
+        print(f"Calculated PAF for {self.risk.name} effect on {self.affected_pipeline_name}: {self.paf_value}")
+        self.paf_calculated = True
+
 
     def apply_risk_effect(self, index: pd.Index, s_pipeline_value: pd.Series) -> pd.Series:
         """Apply the risk effect to the affected pipeline."""
-        # start with a pd.Series of the risk exposure levels
-        s_risk_exposure = self.risk_exposure_pipeline(index)
-
-        # use this to find a pd.Series of relative risk multipliers
-        s_relative_risk = risk_exposure.map(self.relative_risk_mapping)
-
-        # TODO: also find include the PAF, so that the rate stays calibrated at the population level
+        s_relative_risk = self.get_relative_risk(index)
+        # also find the PAF, so that the rate stays calibrated at the population level
+        if not self.paf_calculated:
+            self.calculate_paf(s_relative_risk)
+    
+        s_paf = pd.Series(self.paf_value, index=index)
 
         # apply the relative risk to the affected pipeline
-        s_pipeline_value *= s_relative_risk
+        s_pipeline_value *= (1-s_paf) * s_relative_risk
         return s_pipeline_value
+    
+    def get_relative_risk(self, index: pd.Index) -> pd.Series:
+        # start with a pd.Series of the risk exposure levels
+        s_risk_exposure = self.risk_exposure_pipeline(index)
+        
+        # use this to find a pd.Series of relative risk multipliers
+        s_relative_risk = s_risk_exposure.map(self.relative_risk_mapping)
+        return s_relative_risk

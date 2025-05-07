@@ -55,6 +55,11 @@ configuration:
             unhoused: cat1
             incarcerated: cat2
             housed : cat3
+    effect_of_quarters_risk_on_oud_consistent_to_on_treatment_for_oud_consistent:
+        relative_risk:
+            cat1: 0.5
+            cat2: 2.0
+            cat3: 1.0
 
 
     stratification:
