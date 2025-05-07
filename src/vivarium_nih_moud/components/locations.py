@@ -143,6 +143,12 @@ class SimpleRiskEffect(Component):
         super().__init__()
         self.risk = EntityString(f"risk_factor.{risk_name}")
         self.affected_pipeline_name = affected_pipeline_name
+
+        self.relative_risk_mapping = {
+            'cat1': 0.5,
+            'cat2': 2.0,
+            'cat3': 1.0
+        }
         
     def setup(self, builder: Builder) -> None:
         """Set up the component."""
@@ -161,19 +167,17 @@ class SimpleRiskEffect(Component):
             component=self,
             requires_columns=[self.risk.name],
         )
-        #     f"{self.risk.name}.effect",
-        #     source=self.apply_risk_effect,
-        #     component=self,
-        #     # requires_columns=[self.cause.name],
-        #     # required_resources=
-        # )
 
-    def apply_risk_effect(self, index: pd.Index, pipeline_value) -> pd.Series:
+    def apply_risk_effect(self, index: pd.Index, s_pipeline_value: pd.Series) -> pd.Series:
         """Apply the risk effect to the affected pipeline."""
-        # Get the risk exposure
-        risk_exposure = self.risk_exposure_pipeline(index)
-        # breakpoint()
-        # Apply the risk effect (multiplicative relative risk)
-        pipeline_value[risk_exposure == 'cat1'] *= 0.10
-        pipeline_value[risk_exposure == 'cat2'] *= 10
-        return pipeline_value
+        # start with a pd.Series of the risk exposure levels
+        s_risk_exposure = self.risk_exposure_pipeline(index)
+
+        # use this to find a pd.Series of relative risk multipliers
+        s_relative_risk = risk_exposure.map(self.relative_risk_mapping)
+
+        # TODO: also find include the PAF, so that the rate stays calibrated at the population level
+
+        # apply the relative risk to the affected pipeline
+        s_pipeline_value *= s_relative_risk
+        return s_pipeline_value
