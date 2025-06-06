@@ -6,20 +6,22 @@ from vivarium_public_health.disease import (
     RateTransition,
     SusceptibleState,
 )
+from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.utilities import EntityString
-from vivarium_public_health.risks import Risk, RiskEffect
+
 
 class RiskDiseaseEffect(RiskEffect):
     pass
+
 
 class RiskDiseaseModel(DiseaseModel):
     @property
     def name(self):
         return f"disease_model.{self.cause}"
-            
+
     def setup(self, builder):
         super(DiseaseModel, self).setup(builder)
 
@@ -156,5 +158,7 @@ def moud_model():
     )
 
     return DiseaseModel(
-        cause=cause, initial_state=susceptible, states=[susceptible, with_condition, on_treatment]
+        cause=cause,
+        initial_state=susceptible,
+        states=[susceptible, with_condition, on_treatment],
     )
