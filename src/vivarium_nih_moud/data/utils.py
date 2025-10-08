@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 
 
-def write_or_replace(art, key, data):
-    if key in art.keys:
-        # import pdb; pdb.set_trace()
+def write_or_replace(art, key: str, data: pd.DataFrame):
+    # Use artifact containment check for compatibility
+    if key in art:
         art.replace(key, data)
     else:
         art.write(key, data)

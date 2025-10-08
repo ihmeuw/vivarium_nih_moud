@@ -1,6 +1,6 @@
 """NumPyro/JAX implementation of DisMod-AT, refactored from notebook 2024_07_28a_dismod_ipd_ai_refactor.ipynb
 """
-from typing import Callable
+from typing import Callable, Iterable
 
 import interpax
 import jax
@@ -16,7 +16,7 @@ from vivarium_nih_moud.data import utils
 from vivarium_nih_moud.data.utils import write_or_replace
 
 
-def transform_to_data(param, df_in, sex, ages, years):
+def transform_to_data(param: str, df_in: pd.DataFrame, sex: str, ages: Iterable[int], years: Iterable[int]) -> pd.DataFrame:
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
     t = df_in.loc[sex]
     results = []  # fill with rows of data, then convert to a dataframe
@@ -38,7 +38,7 @@ def transform_to_data(param, df_in, sex, ages, years):
             row["mean"] = np.mean(tt.iloc[0])
             row["standard_error"] = (
                 np.std(tt.iloc[0])
-                + 0.00000001  # add a little bit to the s2 for everything, just to avoid zeros
+                + 1e-8  # small epsilon to avoid zero standard errors
             )
 
             results.append(row)
@@ -64,11 +64,11 @@ def transform_to_prior(df, sex, ages, years, location):
     return mu, s2
 
 
-def at_param(name: str, ages, years, knot_val, method="constant") -> Callable:
+def at_param(name: str, ages, years, knot_val) -> Callable:
     """Create an age- and time-specific rate function for a DisMod model.
 
-    This function generates a 2d-interpolated rate function
-    with a TruncatedNormal prior.
+    This function generates a piecewise-constant 2d-interpolated rate function
+    (the prior on knot values is passed as input).
 
     It uses `searchsorted` as an efficient piecewise constant
     interpolation method.
@@ -79,12 +79,11 @@ def at_param(name: str, ages, years, knot_val, method="constant") -> Callable:
         The name of the rate parameter.
     ages : array-like
     years : array-like
-    knot_val : array-like with rows for ages and columns for years
-    method : str, interpolation method of "constant" or "linear"
+    knot_val : array-like of priors with rows for ages and columns for years
 
     Returns
     -------
-    function
+    Callable
         A function `f(a, t)` that takes array-like values age `a`
         and time `t` as inputs and returns the interpolated rate value
         specific to the given age and time.
@@ -95,62 +94,38 @@ def at_param(name: str, ages, years, knot_val, method="constant") -> Callable:
       'scan', which is allegedly efficient for GPU computation.
 
     """
-
-    if method == "constant":
-
-        def f(a: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
-            method = "scan"  # 'scan_unrolled' can be more performant on GPU at the
-            # expense of additional compile time
-            a_index = jnp.searchsorted(
-                jnp.asarray(ages[1:]),  # Start from ages[1]
-                # so that ages less than ages[1] map to
-                # index 0
-                jnp.asarray(a),
-                method=method,
-                side="right",
-            )
-            t_index = jnp.searchsorted(
-                jnp.asarray(years[1:]),  # Start from years[1]
-                # so that years less than years[1] map to
-                # index 0
-                jnp.asarray(t),
-                method=method,
-                side="right",
-            )
-            return knot_val[a_index, t_index]
-
-    elif method == "linear":
-        f = interpax.Interpolator2D(ages, years, knot_val, method="linear", extrap=True)
-    else:
-        assert 0, f'Method "{method}" unrecognized, should be "constant" or "linear"'
+    def f(a: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
+        method = "scan"  # 'scan_unrolled' can be more performant on GPU at the
+        # expense of additional compile time
+        a_index = jnp.searchsorted(
+            jnp.asarray(ages[1:]),  # Start from ages[1]
+            # so that ages less than ages[1] map to
+            # index 0
+            jnp.asarray(a),
+            method=method,
+            side="right",
+        )
+        t_index = jnp.searchsorted(
+            jnp.asarray(years[1:]),  # Start from years[1]
+            # so that years less than years[1] map to
+            # index 0
+            jnp.asarray(t),
+            method=method,
+            side="right",
+        )
+        return knot_val[a_index, t_index]
     return f
 
 
-def data_model(name, f, df_data):  # FIXME: expose beta so it can be common across locations
-    if len(df_data) == 0:
-        return
+def data_model(name: str, f: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], df_data: pd.DataFrame):
+    assert len(df_data) > 0, f'{name} should have some data'
 
     ages = jnp.array(0.5 * (df_data.age_start + df_data.age_end))
     years = jnp.array(0.5 * (df_data.year_start + df_data.year_end))
     rate_obs_loc = jnp.array(df_data["mean"])
     rate_obs_scale = jnp.array(df_data["standard_error"])
 
-    # refactor the following to use jax.vmap and to include population weights
-    rate_pred = jnp.zeros(len(df_data))
-    n_points = 5
-    for alpha in np.linspace(0, 1, n_points):
-        ages = jnp.array(alpha * df_data.age_start + (1 - alpha) * df_data.age_end)
-        rate_pred += f(ages, years)
-    rate_pred /= n_points
-
-    if len(df_data.filter(like="x_").columns) != 0:
-        # include fixed effects
-        X = jnp.array(df_data.filter(like="x_").fillna(0))
-        beta = numpyro.sample(
-            f"{name}_beta",
-            dist.Normal(loc=jnp.zeros(len(X[0])), scale=1.0),
-        )
-        rate_pred = jnp.exp(jnp.dot(X, beta)) * rate_pred
+    rate_pred = f(ages, years)
 
     rate_obs = numpyro.sample(
         f"{name}_obs", dist.Normal(loc=rate_pred, scale=rate_obs_scale), obs=rate_obs_loc
@@ -158,8 +133,8 @@ def data_model(name, f, df_data):  # FIXME: expose beta so it can be common acro
     return rate_obs
 
 
-def at_param_w_data(param, ages, years, knot_val, df_data, method="constant"):
-    rate_function = at_param(param, ages, years, knot_val, method)
+def at_param_w_data(param, ages, years, knot_val, df_data):
+    rate_function = at_param(param, ages, years, knot_val)
     rate_data_obs = data_model(param, rate_function, df_data)
     return rate_function
 
@@ -207,7 +182,6 @@ def single_location_model(
         years,
         knot_val_dict["p"],
         df_data[df_data.measure == "p"],
-        method="constant",
     )
 
     tx = at_param_w_data(
@@ -216,7 +190,6 @@ def single_location_model(
         years,
         knot_val_dict["tx"],
         df_data[df_data.measure == "tx"],
-        method="constant",
     )
 
     if include_consistency_constraints:
@@ -257,9 +230,10 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
         )
 
         S, C, T = solution.ys
-        difference = jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))
-        difference += jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt))
-        return difference
+        sq_difference = 0.0
+        sq_difference += (jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt)))**2
+        sq_difference += (jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt)))**2
+        return jnp.sqrt(sq_difference)
 
     # Vectorize the ode_consistency_factor function
     ode_consistency_factors = jax.vmap(ode_consistency_factor)
@@ -348,12 +322,18 @@ class ConsistentModel:
         assert hasattr(self, "samples"), "Must run fit() first"
         group = ""
 
+        # Handle ode_errors which has a different key format
+        if param == "ode_errors":
+            sample_key = f"ode_errors_{group}"
+        else:
+            sample_key = f"{param}_{group}"
+
         rate_table = []
         for i, a in enumerate(self.ages):
             for j, t in enumerate(self.years):
                 if year != t:
                     continue
-                rate = self.samples[f"{param}_{group}"][:, i, j]
+                rate = self.samples[sample_key][:, i, j]
 
                 row = dict(
                     age_start=a,
@@ -461,6 +441,10 @@ def generate_consistent_moud_rates(art, location: str, years):
         rate_name = key[rate_type]
         rate_name = rate_name.replace("opioid_use_disorders", "oud_consistent")
         write_or_replace(art, rate_name, df_out)
+
+    # store ode_errors
+    df_out = get_rates(m, "ode_errors", 2020)
+    write_or_replace(art, "cause.oud_consistent.ode_errors", df_out)
 
     # then do cause specific mortality rate
     df_out = (
