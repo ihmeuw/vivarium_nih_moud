@@ -321,16 +321,20 @@ class ConsistentModel:
 
     def get_rate(self, param, year):
         assert hasattr(self, "samples"), "Must run fit() first"
-        group = ""
 
         # Handle ode_errors which has a different key format and shape
         if param == "ode_errors":
+            # ode_errors uses the full group name (sex_location)
+            location = ""
+            group = group_name(self.sex, location)
             sample_key = f"ode_errors_{group}"
             # ode_errors is flattened from mesh grid, need to reshape
             ode_data = self.samples[sample_key]
             # Reshape from (n_samples, n_ages * n_years) to (n_samples, n_ages, n_years)
             ode_data_reshaped = ode_data.reshape(ode_data.shape[0], len(self.ages), len(self.years))
         else:
+            # Regular params use empty group suffix
+            group = ""
             sample_key = f"{param}_{group}"
 
         rate_table = []
