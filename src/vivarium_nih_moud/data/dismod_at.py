@@ -194,7 +194,7 @@ def single_location_model(
     )
 
     if include_consistency_constraints:
-        ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma=0.01, ages=ages, years=years)
+        ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma=0.005, ages=ages, years=years)
     return dict(p=p, i=i, f=f, m=m, r=r, ti=ti, ts=ts, tf=tf)
 
 
@@ -270,15 +270,38 @@ class ConsistentModel:
         def model():
             knot_val_dict = {}
             for param in ["p", "tx", "i", "f", "m", "r", "ti", "tf", "ts"]:
-                knot_val_dict[param] = numpyro.sample(
-                    f"{param}_{group}",
-                    dist.TruncatedNormal(
-                        loc=jnp.zeros((len(ages), len(years))),
-                        scale=jnp.ones((len(ages), len(years))),
-                        low=0.0,
-                        high=self.max_value_dict.get(param, 0.5),
-                    ),
-                )
+                # Remission rate gets a different prior centered at 1.0 with high uncertainty
+                if param == "r":
+                    knot_val_dict[param] = numpyro.sample(
+                        f"{param}_{group}",
+                        dist.TruncatedNormal(
+                            loc=jnp.ones((len(ages), len(years))),
+                            scale=jnp.ones((len(ages), len(years))),
+                            low=0.0,
+                            high=self.max_value_dict.get(param, 2.0),
+                        ),
+                    )
+                else:
+                    knot_val_dict[param] = numpyro.sample(
+                        f"{param}_{group}",
+                        dist.TruncatedNormal(
+                            loc=jnp.zeros((len(ages), len(years))),
+                            scale=jnp.ones((len(ages), len(years))),
+                            low=0.0,
+                            high=self.max_value_dict.get(param, 0.5),
+                        ),
+                    )
+
+            # Add age smoothness penalty to encourage smooth age patterns
+            # Penalize large differences between adjacent age groups
+            smoothness_sigma = 0.02  # controls how much smoothness to enforce
+            for param in ["p", "tx", "i", "f", "m", "r", "ti", "tf", "ts"]:
+                # Compute differences between adjacent age groups
+                age_diffs = knot_val_dict[param][1:, :] - knot_val_dict[param][:-1, :]
+                # Add penalty for large age differences
+                log_pr = dist.Normal(0, smoothness_sigma).log_prob(age_diffs).sum()
+                numpyro.factor(f"age_smoothness_{param}_{group}", log_pr)
+
             # TODO: consider moving knots of p to midpoints
             rate_functions = single_location_model(
                 group,
@@ -301,7 +324,7 @@ class ConsistentModel:
                         f"i_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"f_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"m_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"r_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"r_{group}": jnp.ones([len(ages), len(years)]) * 1.00,
                         f"ti_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"ts_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
                         f"tf_{group}": jnp.ones([len(ages), len(years)]) * 1.00,
