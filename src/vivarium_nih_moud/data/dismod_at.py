@@ -118,7 +118,8 @@ def at_param(name: str, ages, years, knot_val) -> Callable:
 
 
 def data_model(name: str, f: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], df_data: pd.DataFrame):
-    assert len(df_data) > 0, f'{name} should have some data'
+    if len(df_data) == 0:
+        return
 
     ages = jnp.array(0.5 * (df_data.age_start + df_data.age_end))
     years = jnp.array(0.5 * (df_data.year_start + df_data.year_end))
@@ -239,7 +240,7 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
     ode_consistency_factors = jax.vmap(ode_consistency_factor)
 
     # Create a mesh grid of ages and years
-    age_mesh, year_mesh = jnp.meshgrid(ages[:-1], years[:-1])
+    age_mesh, year_mesh = jnp.meshgrid(jnp.array(ages), jnp.array(years))
     at_list = jnp.stack([age_mesh.ravel(), year_mesh.ravel()], axis=-1)
 
     # Compute ODE errors for all age-time combinations at once
@@ -322,9 +323,13 @@ class ConsistentModel:
         assert hasattr(self, "samples"), "Must run fit() first"
         group = ""
 
-        # Handle ode_errors which has a different key format
+        # Handle ode_errors which has a different key format and shape
         if param == "ode_errors":
             sample_key = f"ode_errors_{group}"
+            # ode_errors is flattened from mesh grid, need to reshape
+            ode_data = self.samples[sample_key]
+            # Reshape from (n_samples, n_ages * n_years) to (n_samples, n_ages, n_years)
+            ode_data_reshaped = ode_data.reshape(ode_data.shape[0], len(self.ages), len(self.years))
         else:
             sample_key = f"{param}_{group}"
 
@@ -333,7 +338,11 @@ class ConsistentModel:
             for j, t in enumerate(self.years):
                 if year != t:
                     continue
-                rate = self.samples[sample_key][:, i, j]
+
+                if param == "ode_errors":
+                    rate = ode_data_reshaped[:, i, j]
+                else:
+                    rate = self.samples[sample_key][:, i, j]
 
                 row = dict(
                     age_start=a,
@@ -342,8 +351,8 @@ class ConsistentModel:
                     year_end=t + 1,
                     sex=self.sex,
                 )
-                for i, r_i in enumerate(rate):
-                    row[f"draw_{i}"] = float(r_i)
+                for idx, r_i in enumerate(rate):
+                    row[f"draw_{idx}"] = float(r_i)
                 rate_table.append(row)
         return pd.DataFrame(rate_table).set_index(
             ["sex", "age_start", "age_end", "year_start", "year_end"]
@@ -433,8 +442,6 @@ def generate_consistent_moud_rates(art, location: str, years):
 
     # store consistent rates in artifact
     for rate_type in ["p", "tx", "i", "f", "r", "ti", "tf", "ts"]:
-        if rate_type == "r":
-            breakpoint()
         # generate data for k
         df_out = get_rates(m, rate_type, 2020)
         # store generated data in artifact
