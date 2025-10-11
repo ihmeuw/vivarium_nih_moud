@@ -16,7 +16,9 @@ from vivarium_nih_moud.data import utils
 from vivarium_nih_moud.data.utils import write_or_replace
 
 
-def transform_to_data(param: str, df_in: pd.DataFrame, sex: str, ages: Iterable[int], years: Iterable[int]) -> pd.DataFrame:
+def transform_to_data(
+    param: str, df_in: pd.DataFrame, sex: str, ages: Iterable[int], years: Iterable[int]
+) -> pd.DataFrame:
     """Convert artifact data to a format suitable for DisMod-AT-NumPyro."""
     t = df_in.loc[sex]
     results = []  # fill with rows of data, then convert to a dataframe
@@ -37,8 +39,7 @@ def transform_to_data(param: str, df_in: pd.DataFrame, sex: str, ages: Iterable[
             assert len(tt) == 1
             row["mean"] = np.mean(tt.iloc[0])
             row["standard_error"] = (
-                np.std(tt.iloc[0])
-                + 1e-8  # small epsilon to avoid zero standard errors
+                np.std(tt.iloc[0]) + 1e-8  # small epsilon to avoid zero standard errors
             )
 
             results.append(row)
@@ -94,6 +95,7 @@ def at_param(name: str, ages, years, knot_val) -> Callable:
       'scan', which is allegedly efficient for GPU computation.
 
     """
+
     def f(a: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
         method = "scan"  # 'scan_unrolled' can be more performant on GPU at the
         # expense of additional compile time
@@ -114,10 +116,13 @@ def at_param(name: str, ages, years, knot_val) -> Callable:
             side="right",
         )
         return knot_val[a_index, t_index]
+
     return f
 
 
-def data_model(name: str, f: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], df_data: pd.DataFrame):
+def data_model(
+    name: str, f: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], df_data: pd.DataFrame
+):
     if len(df_data) == 0:
         return
 
@@ -232,8 +237,8 @@ def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
 
         S, C, T = solution.ys
         sq_difference = 0.0
-        sq_difference += (jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt)))**2
-        sq_difference += (jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt)))**2
+        sq_difference += (jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))) ** 2
+        sq_difference += (jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt))) ** 2
         return jnp.sqrt(sq_difference)
 
     # Vectorize the ode_consistency_factor function
@@ -354,7 +359,9 @@ class ConsistentModel:
             # ode_errors is flattened from mesh grid, need to reshape
             ode_data = self.samples[sample_key]
             # Reshape from (n_samples, n_ages * n_years) to (n_samples, n_ages, n_years)
-            ode_data_reshaped = ode_data.reshape(ode_data.shape[0], len(self.ages), len(self.years))
+            ode_data_reshaped = ode_data.reshape(
+                ode_data.shape[0], len(self.ages), len(self.years)
+            )
         else:
             # Regular params use empty group suffix
             group = ""
