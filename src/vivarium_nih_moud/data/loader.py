@@ -18,7 +18,9 @@ import numpy as np
 import pandas as pd
 from gbd_mapping import causes, covariates, risk_factors
 from vivarium.framework.artifact import EntityKey
+from vivarium_gbd_access import constants as gbd_constants
 from vivarium_gbd_access import gbd
+from vivarium_gbd_access import utilities as vga_utils
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
 from vivarium_inputs import utilities as vi_utils
@@ -55,8 +57,10 @@ def get_data(
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.OUD.PREVALENCE: load_standard_data,
         data_keys.OUD.INCIDENCE_RATE: load_standard_data,
+        data_keys.OUD.REMISSION_RATE: load_oud_dismod_remission,
         data_keys.OUD.CSMR: load_standard_data,
-        data_keys.OUD.EMR: load_standard_data,
+        data_keys.OUD.EMR_COMO: load_standard_data,
+        data_keys.OUD.EMR_DISMOD: load_oud_dismod_emr,
         data_keys.OUD.DISABILITY_WEIGHT: load_standard_data,
         data_keys.OUD.RESTRICTIONS: load_metadata,
     }
@@ -175,3 +179,29 @@ def get_entity(key: Union[str, EntityKey]):
     }
     key = EntityKey(key)
     return type_map[key.type][key.name]
+
+
+@vga_utils.cache
+def load_oud_dismod_remission(lookup_key, location: str, years) -> pd.DataFrame:
+    return load_oud_dismod(location, "Remission rate", years)
+
+
+@vga_utils.cache
+def load_oud_dismod_emr(lookup_key, location: str, years) -> pd.DataFrame:
+    return load_oud_dismod(location, "Excess mortality rate", years)
+
+
+def load_oud_dismod(location, measure_name, years):
+    location_id = utility_data.get_location_id(location)
+    data = vga_utils.get_draws(
+        source=gbd_constants.SOURCES.EPI,
+        gbd_id_type="modelable_entity_id",
+        gbd_id=24_644,  # opioid use disorders custom EMR - http://ihmeuw.org/7auc
+        release_id=16,  # GBD 2023
+        # year_id=2023,
+        location_id=location_id,
+        measure_id=vi_globals.MEASURES[measure_name],
+        downsample=True,
+        n_draws=500,
+    )
+    return data

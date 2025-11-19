@@ -30,23 +30,14 @@ POPULATION = __Population()
 
 
 class __OUD(NamedTuple):
-
-    # Keys that will be loaded into the artifact. must have a colon type declaration
-    PREVALENCE: TargetString = TargetString("cause.opioid_use_disorders.prevalence")
-    INCIDENCE_RATE: TargetString = TargetString("cause.opioid_use_disorders.incidence_rate")
-    REMISSION_RATE: TargetString = TargetString("cause.opioid_use_disorders.remission_rate")
-    DISABILITY_WEIGHT: TargetString = TargetString(
-        "cause.opioid_use_disorders.disability_weight"
-    )
-    EMR: TargetString = TargetString("cause.opioid_use_disorders.excess_mortality_rate")
-    CSMR: TargetString = TargetString(
-        "cause.opioid_use_disorders.cause_specific_mortality_rate"
-    )
-    RESTRICTIONS: TargetString = TargetString("cause.opioid_use_disorders.restrictions")
-
-    # Useful keys not for the artifact - distinguished by not using the colon type declaration
-    RAW_DISEASE_PREVALENCE = TargetString("sequela.raw_disease.prevalence")
-    RAW_DISEASE_INCIDENCE_RATE = TargetString("sequela.raw_disease.incidence_rate")
+    PREVALENCE: str = "cause.opioid_use_disorders.prevalence"
+    INCIDENCE_RATE: str = "cause.opioid_use_disorders.incidence_rate"
+    REMISSION_RATE: str = "cause.opioid_use_disorders.remission_rate"
+    DISABILITY_WEIGHT: str = "cause.opioid_use_disorders.disability_weight"
+    EMR_COMO: str = "cause.opioid_use_disorders.excess_mortality_rate_como"
+    EMR_DISMOD: str = "cause.opioid_use_disorders.excess_mortality_rate_dismod"
+    CSMR: str = "cause.opioid_use_disorders.cause_specific_mortality_rate"
+    RESTRICTIONS: str = "cause.opioid_use_disorders.restrictions"
 
     @property
     def name(self):
@@ -58,6 +49,29 @@ class __OUD(NamedTuple):
 
 
 OUD = __OUD()
+
+
+class __MOUD(NamedTuple):
+    PREVALENCE: str = "cause.moud.prevalence"
+    INCIDENCE_RATE: str = "cause.moud.incidence_rate"
+    REMISSION_RATE: str = "cause.moud.remission_rate"
+    DISABILITY_WEIGHT: str = "cause.moud.disability_weight"
+    EMR_COMO: str = "cause.moud.excess_mortality_rate_como"
+    EMR_DISMOD: str = "cause.moud.excess_mortality_rate_dismod"
+    CSMR: str = "cause.moud.cause_specific_mortality_rate"
+    RESTRICTIONS: str = "cause.moud.restrictions"
+
+    @property
+    def name(self):
+        return "moud"
+
+    @property
+    def log_name(self):
+        return "moud"
+
+
+MOUD = __MOUD()
+
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
