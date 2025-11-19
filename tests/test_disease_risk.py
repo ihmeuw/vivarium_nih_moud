@@ -102,14 +102,6 @@ def test_disease_risk_mapping():
     pd.testing.assert_series_equal(exposure, expected)
 
 
-from unittest.mock import MagicMock, patch
-
-import pandas as pd
-import pytest
-from vivarium.interface.interactive import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
-
-
 class MockDiseaseModel:
     """Mock disease model for testing"""
 
@@ -206,5 +198,3 @@ def test_disease_risk_without_artifact():
 
     # Verify the mapping is updated correctly
     pd.testing.assert_series_equal(updated_exposure, updated_expected)
-
-    print("DiseaseRisk test without artifact passed successfully!")
