@@ -18,6 +18,7 @@ isort
 jupyterlab
 matplotlib
 jax
+jaxlib
 numpyro
 diffrax
 interpax

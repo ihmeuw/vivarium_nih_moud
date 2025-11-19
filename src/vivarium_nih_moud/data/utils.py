@@ -1,21 +1,35 @@
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
+
+
+def write_or_replace(art, key: str, data: pd.DataFrame):
+    # Use artifact containment check for compatibility
+    if key in art:
+        art.replace(key, data)
+    else:
+        art.write(key, data)
+
 
 def generate_constant_data(data_value):
-    ages = np.linspace(0, 100, 11, endpoint=True)
+    ages = np.arange(0, 101, 5)
     years = [2021]
-    sexes = ['Male', 'Female']
+    sexes = ["Male", "Female"]
     data = []
     for age in ages:
         for year in years:
             for sex in sexes:
-                data.append({
-                    'age_start': age,
-                    'age_end': age+10,
-                    'year_start': year,
-                    'year_end': year+1,
-                    'sex': sex,
-                })
+                data.append(
+                    {
+                        "age_start": age,
+                        "age_end": age + 5,
+                        "year_start": year,
+                        "year_end": year + 1,
+                        "sex": sex,
+                    }
+                )
                 for i in range(1_000):
-                    data[-1][f'draw_{i}'] = np.clip(data_value+np.random.uniform(0,.1), 0, 1)
+                    data[-1][f"draw_{i}"] = np.clip(
+                        data_value + np.random.uniform(0, 0.01), 0, 1
+                    )
     data = pd.DataFrame(data)
-    return data.set_index(['sex', 'age_start', 'age_end', 'year_start', 'year_end'])
+    return data.set_index(["sex", "age_start", "age_end", "year_start", "year_end"])

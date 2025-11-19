@@ -16,7 +16,7 @@ import click
 from loguru import logger
 
 from ..constants import data_keys, metadata
-from ..data import dismod_at
+from ..data import dismod_at, quarters_data
 from ..tools.app_logging import add_logging_sink, decode_status
 from ..utilities import sanitize_location
 
@@ -237,6 +237,7 @@ def build_single_location_artifact(
             builder.load_and_write_data(artifact, key, location, years, key in replace_keys)
 
     dismod_at.generate_consistent_moud_rates(artifact, location, years)
+    quarters_data.generate_quarters_data(artifact, location, years)
 
     logger.info(f"**Done building -- {location}**")
 
