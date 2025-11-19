@@ -1,6 +1,7 @@
 # visual_validation.py
 import argparse
 import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -55,7 +56,8 @@ def validation_plots(sim, art, years_to_run, output_file=None):
     df_with_condition_pt = df_prevalent_cases * years_to_run
 
     df_deaths = (
-        pop[pop.cause_of_death == cause].groupby(["age_group", "sex"]).tracked.count() * years_to_run
+        pop[pop.cause_of_death == cause].groupby(["age_group", "sex"]).tracked.count()
+        * years_to_run
     )
 
     df_incident_cases = pop.groupby(
@@ -119,14 +121,14 @@ def validation_plots(sim, art, years_to_run, output_file=None):
                             t1 = data_to_plot
                             t1[sex].plot(ax=ax, label=f"{year}", marker="o", linestyle="none")
                     except Exception:
-                        pass # Data might be missing for some groups in short sims
+                        pass  # Data might be missing for some groups in short sims
 
             # Plot artifact data
             if not artifact_data.empty and sex in artifact_data.index:
                 artifact_to_plot = artifact_data.loc[sex] * 100_000
-                artifact_to_plot.index = artifact_to_plot.eval(".5*(age_start+age_end)").astype(
-                    float
-                )
+                artifact_to_plot.index = artifact_to_plot.eval(
+                    ".5*(age_start+age_end)"
+                ).astype(float)
                 artifact_to_plot = artifact_to_plot.sort_index()
                 artifact_mean = artifact_to_plot.mean(axis=1)
                 artifact_mean.plot(
@@ -151,10 +153,18 @@ def validation_plots(sim, art, years_to_run, output_file=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run visual validation.")
-    parser.add_argument("--artifact_path", type=str, help="Path to the artifact", default=None)
-    parser.add_argument("--years", type=float, default=12 * 7 / 365, help="Number of years to run simulation")
-    parser.add_argument("--output", type=str, default=None, help="Output file for the plot (e.g. plot.png)")
-    parser.add_argument("--run-sim", action="store_true", help="Run the simulation (requires artifact)")
+    parser.add_argument(
+        "--artifact_path", type=str, help="Path to the artifact", default=None
+    )
+    parser.add_argument(
+        "--years", type=float, default=12 * 7 / 365, help="Number of years to run simulation"
+    )
+    parser.add_argument(
+        "--output", type=str, default=None, help="Output file for the plot (e.g. plot.png)"
+    )
+    parser.add_argument(
+        "--run-sim", action="store_true", help="Run the simulation (requires artifact)"
+    )
 
     args = parser.parse_args()
 
@@ -175,7 +185,10 @@ if __name__ == "__main__":
             art = vi.Artifact(artifact_path)
             validation_plots(sim, art, args.years, args.output)
         except FileNotFoundError:
-            print(f"Error: Artifact not found at {artifact_path}. Please provide a valid path.", file=sys.stderr)
+            print(
+                f"Error: Artifact not found at {artifact_path}. Please provide a valid path.",
+                file=sys.stderr,
+            )
             sys.exit(1)
     else:
         print("Skipping simulation run. Use --run-sim to run.")

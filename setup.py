@@ -46,6 +46,7 @@ if __name__ == "__main__":
         "gbd_mapping>=4.0.0",
         "vivarium>=3.0.7",
         "vivarium_public_health>=3.0.9",
+        "layered_config_tree<4.0.0",
         "click",
         "jinja2",
         "loguru",
@@ -66,7 +67,7 @@ if __name__ == "__main__":
         "interpax",
     ]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.3"]
-    test_requirements = ["pytest"]
+    test_requirements = ["pytest", "matplotlib"]
     lint_requirements = ["black", "isort"]
 
     setup(
