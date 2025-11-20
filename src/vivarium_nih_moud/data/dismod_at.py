@@ -12,6 +12,7 @@ from diffrax import Dopri5, ODETerm, SaveAt, diffeqsolve
 from numpyro import distributions as dist
 from numpyro import infer
 
+from vivarium_nih_moud.constants import data_keys
 from vivarium_nih_moud.data import utils
 from vivarium_nih_moud.data.dismod_at_helpers import (
     add_age_monotone_increasing_factor,
@@ -405,36 +406,48 @@ def generate_consistent_moud_rates(art, location: str, years):
 
     # copy metadata
     for key in [
-        "cause.opioid_use_disorders.restrictions",
-        "cause.opioid_use_disorders.disability_weight",
+        data_keys.OUD.RESTRICTIONS,
+        data_keys.OUD.DISABILITY_WEIGHT,
     ]:
         data = art.load(key)
-        write_or_replace(art, key.replace("opioid_use_disorders", "oud_consistent"), data)
+        write_or_replace(
+            art, key.replace("opioid_use_disorders", "oud_consistent"), data
+        )  # This still uses string replacement but target keys are now defined in data_keys
 
-    key = {
-        "i": "cause.opioid_use_disorders.incidence_rate",
-        "p": "cause.opioid_use_disorders.prevalence",
-        "f": "cause.opioid_use_disorders.excess_mortality_rate",
-        "m_all": "cause.all_causes.cause_specific_mortality_rate",
-        "csmr_with": "cause.opioid_use_disorders.cause_specific_mortality_rate",
-        "pop": "population.structure",
-        "r": "cause.oud_consistent.remission_rate",
-        "ti": "cause.oud_consistent.treatment_initiation_rate",
-        "ts": "cause.oud_consistent.treatment_success_rate",
-        "tf": "cause.oud_consistent.treatment_failure_rate",
-        "tx": "cause.oud_consistent.treatment_ratio",
+    # Map parameters to keys for loading data (INPUTS)
+    # Using OUD keys for input data
+    load_keys = {
+        "i": data_keys.OUD.INCIDENCE_RATE,
+        "p": data_keys.OUD.PREVALENCE,
+        "f": data_keys.OUD.EMR_DISMOD,
+        "m_all": data_keys.POPULATION.ACMR,
+        "csmr_with": data_keys.OUD.CSMR,
+    }
+
+    # Map parameters to keys for saving consistent data (OUTPUTS)
+    save_keys = {
+        "i": data_keys.OUD_CONSISTENT.INCIDENCE_RATE,
+        "p": data_keys.OUD_CONSISTENT.PREVALENCE,
+        "f": data_keys.OUD_CONSISTENT.EXCESS_MORTALITY_RATE,
+        "r": data_keys.OUD_CONSISTENT.REMISSION_RATE,
+        "ti": data_keys.OUD_CONSISTENT.TREATMENT_INITIATION_RATE,
+        "ts": data_keys.OUD_CONSISTENT.TREATMENT_SUCCESS_RATE,
+        "tf": data_keys.OUD_CONSISTENT.TREATMENT_FAILURE_RATE,
+        "tx": data_keys.OUD_CONSISTENT.TREATMENT_RATIO,
     }
 
     def oud_data(sex):
         df_data = pd.concat(
             [
-                transform_to_data("p", art.load(key["p"]), sex, ages, [2021]),
-                transform_to_data("i", art.load(key["i"]), sex, ages, [2021]),
-                transform_to_data("r", utils.generate_constant_data(0.05), sex, ages, [2021]),
-                transform_to_data("f", art.load(key["f"]), sex, ages, [2021]),
+                transform_to_data("p", art.load(load_keys["p"]), sex, ages, [2021]),
+                transform_to_data("i", art.load(load_keys["i"]), sex, ages, [2021]),
+                transform_to_data(
+                    "r", utils.generate_constant_data(0.05), sex, ages, [2021]
+                ),
+                transform_to_data("f", art.load(load_keys["f"]), sex, ages, [2021]),
                 transform_to_data(
                     "m",
-                    art.load(key["m_all"]) - art.load(key["csmr_with"]),
+                    art.load(load_keys["m_all"]) - art.load(load_keys["csmr_with"]),
                     sex,
                     ages,
                     [2021],
@@ -469,19 +482,20 @@ def generate_consistent_moud_rates(art, location: str, years):
         # generate data for k
         df_out = get_rates(m, rate_type, 2020)
         # store generated data in artifact
-        rate_name = key[rate_type]
-        rate_name = rate_name.replace("opioid_use_disorders", "oud_consistent")
+        rate_name = save_keys[rate_type]
         write_or_replace(art, rate_name, df_out)
 
     # store ode_errors
     df_out = get_rates(m, "ode_errors", 2020)
-    write_or_replace(art, "cause.oud_consistent.ode_errors", df_out)
+    write_or_replace(art, data_keys.OUD_CONSISTENT.ODE_ERRORS, df_out)
 
     # then do cause specific mortality rate
     df_out = (
-        get_rates(m, "p", 2020) * (1 - get_rates(m, "tx", 2020)) * get_rates(m, "f", 2020)
+        get_rates(m, "p", 2020)
+        * (1 - get_rates(m, "tx", 2020))
+        * get_rates(m, "f", 2020)
     )
-    rate_name = "cause.oud_consistent.cause_specific_mortality_rate"
+    rate_name = data_keys.OUD_CONSISTENT.CSMR
     write_or_replace(art, rate_name, df_out)
 
 

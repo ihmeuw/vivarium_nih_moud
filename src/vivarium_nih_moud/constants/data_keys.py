@@ -73,6 +73,33 @@ class __MOUD(NamedTuple):
 MOUD = __MOUD()
 
 
+class __OUD_CONSISTENT(NamedTuple):
+    PREVALENCE: str = "cause.oud_consistent.prevalence"
+    INCIDENCE_RATE: str = "cause.oud_consistent.incidence_rate"
+    REMISSION_RATE: str = "cause.oud_consistent.remission_rate"
+    DISABILITY_WEIGHT: str = "cause.oud_consistent.disability_weight"
+    EXCESS_MORTALITY_RATE: str = "cause.oud_consistent.excess_mortality_rate"
+    CSMR: str = "cause.oud_consistent.cause_specific_mortality_rate"
+    RESTRICTIONS: str = "cause.oud_consistent.restrictions"
+
+    TREATMENT_INITIATION_RATE: str = "cause.oud_consistent.treatment_initiation_rate"
+    TREATMENT_SUCCESS_RATE: str = "cause.oud_consistent.treatment_success_rate"
+    TREATMENT_FAILURE_RATE: str = "cause.oud_consistent.treatment_failure_rate"
+    TREATMENT_RATIO: str = "cause.oud_consistent.treatment_ratio"
+    ODE_ERRORS: str = "cause.oud_consistent.ode_errors"
+
+    @property
+    def name(self):
+        return "oud_consistent"
+
+    @property
+    def log_name(self):
+        return "oud_consistent"
+
+
+OUD_CONSISTENT = __OUD_CONSISTENT()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     OUD,
