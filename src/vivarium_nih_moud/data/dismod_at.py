@@ -13,6 +13,11 @@ from numpyro import distributions as dist
 from numpyro import infer
 
 from vivarium_nih_moud.data import utils
+from vivarium_nih_moud.data.dismod_at_helpers import (
+    add_age_monotone_increasing_factor,
+    add_age_smoothness_factors,
+    add_rate_ordering_factor,
+)
 from vivarium_nih_moud.data.utils import write_or_replace
 
 
@@ -25,11 +30,14 @@ def transform_to_data(
 
     for a in ages:
         for y in years:
+            # Note: age_end and year_end here are meta fields used only for midpoints
+            # computation downstream; they do not affect which rows are selected from
+            # the artifact (selection is done via the query below).
             row = {
-                "age_start": a,
-                "age_end": a,
-                "year_start": y,
-                "year_end": y,
+                "age_start": a + 2.5,
+                "age_end": a + 2.5,
+                "year_start": y + 0.5,
+                "year_end": y + 0.5,
                 "sex": sex,
                 "measure": param,
             }
@@ -149,115 +157,6 @@ def group_name(sex, location):
     return f"{sex}_{location}".replace(" ", "_").lower()
 
 
-def single_location_model(
-    group,
-    sex,
-    location,
-    ages,
-    years,
-    knot_val_dict,
-    df_data,
-    include_consistency_constraints=True,
-):
-    group = group_name(sex, location)
-    i = at_param_w_data(
-        f"i_{group}", ages, years, knot_val_dict["i"], df_data[df_data.measure == "i"]
-    )
-    r = at_param_w_data(
-        f"r_{group}", ages, years, knot_val_dict["r"], df_data[df_data.measure == "r"]
-    )
-    ti = at_param_w_data(
-        f"ti_{group}", ages, years, knot_val_dict["ti"], df_data[df_data.measure == "ti"]
-    )
-    ts = at_param_w_data(
-        f"ts_{group}", ages, years, knot_val_dict["ts"], df_data[df_data.measure == "ts"]
-    )
-    tf = at_param_w_data(
-        f"tf_{group}", ages, years, knot_val_dict["tf"], df_data[df_data.measure == "tf"]
-    )
-    f = at_param_w_data(
-        f"f_{group}", ages, years, knot_val_dict["f"], df_data[df_data.measure == "f"]
-    )
-    m = at_param_w_data(
-        f"m_{group}", ages, years, knot_val_dict["m"], df_data[df_data.measure == "m"]
-    )
-
-    p = at_param_w_data(
-        f"p_{group}",
-        ages,
-        years,
-        knot_val_dict["p"],
-        df_data[df_data.measure == "p"],
-    )
-
-    tx = at_param_w_data(
-        f"tx_{group}",
-        ages,
-        years,
-        knot_val_dict["tx"],
-        df_data[df_data.measure == "tx"],
-    )
-
-    if include_consistency_constraints:
-        ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma=0.005, ages=ages, years=years)
-    return dict(p=p, i=i, f=f, m=m, r=r, ti=ti, ts=ts, tf=tf)
-
-
-def ode_model(group, p, tx, i, r, ti, ts, tf, f, m, sigma, ages, years):
-    def dismod_f(t, y, args):
-        S, C, T = y
-        i, r, ti, ts, tf, f, m = args
-        return (
-            # don't reformat this equation block when running `isort .; black .`
-            # fmt: off
-            0 - m * S         - i * S + r * C          + ts * T         ,
-            0 - m * C - f * C + i * S - r * C - ti * C          + tf * T,
-            0 - m * T                         + ti * C - ts * T - tf * T,
-            # fmt: on
-        )
-
-    def ode_consistency_factor(at):
-        a, t = at
-        dt = 5
-        term = ODETerm(dismod_f)
-        solver = Dopri5()
-        saveat = SaveAt(t0=False, t1=True)
-
-        y0 = (1 - p(a, t), p(a, t) * (1 - tx(a, t)), p(a, t) * tx(a, t))
-        solution = diffeqsolve(
-            term,
-            solver,
-            t0=t,
-            t1=t + dt,
-            dt0=0.5,
-            y0=y0,
-            saveat=saveat,
-            args=[i(a, t), r(a, t), ti(a, t), ts(a, t), tf(a, t), f(a, t), m(a, t)],
-        )
-
-        S, C, T = solution.ys
-        sq_difference = 0.0
-        sq_difference += (jnp.log((C + T) / (S + C + T)) - jnp.log(p(a + dt, t + dt))) ** 2
-        sq_difference += (jnp.log(T / (T + C)) - jnp.log(tx(a + dt, t + dt))) ** 2
-        return jnp.sqrt(sq_difference)
-
-    # Vectorize the ode_consistency_factor function
-    ode_consistency_factors = jax.vmap(ode_consistency_factor)
-
-    # Create a mesh grid of ages and years
-    age_mesh, year_mesh = jnp.meshgrid(jnp.array(ages), jnp.array(years))
-    at_list = jnp.stack([age_mesh.ravel(), year_mesh.ravel()], axis=-1)
-
-    # Compute ODE errors for all age-time combinations at once
-    ode_errors = numpyro.deterministic(
-        f"ode_errors_{group}", ode_consistency_factors(at_list)
-    )
-
-    # Add a normal penalty for difference between solution and SC
-    log_pr = dist.Normal(0, sigma).log_prob(ode_errors).sum()
-    numpyro.factor(f"ode_consistency_factor_{group}", log_pr)
-
-
 class ConsistentModel:
     def __init__(self, sex, ages, years, max_value_dict={}):
         self.sex = sex
@@ -267,10 +166,8 @@ class ConsistentModel:
 
     def fit(self, df_data):
         # expect this to take about 2 minutes to run
-        group = ""
         ages, years = self.ages, self.years
-        location = ""
-        sex = self.sex
+        group = ""  # To match original variable, though it seems unused as prefix in single model fit
 
         def model():
             knot_val_dict = {}
@@ -278,7 +175,7 @@ class ConsistentModel:
                 # Remission rate gets a different prior centered at 1.0 with high uncertainty
                 if param == "r":
                     knot_val_dict[param] = numpyro.sample(
-                        f"{param}_{group}",
+                        f"{param}",
                         dist.TruncatedNormal(
                             loc=jnp.ones((len(ages), len(years))),
                             scale=jnp.ones((len(ages), len(years))),
@@ -288,7 +185,7 @@ class ConsistentModel:
                     )
                 else:
                     knot_val_dict[param] = numpyro.sample(
-                        f"{param}_{group}",
+                        f"{param}",
                         dist.TruncatedNormal(
                             loc=jnp.zeros((len(ages), len(years))),
                             scale=jnp.ones((len(ages), len(years))),
@@ -298,41 +195,138 @@ class ConsistentModel:
                     )
 
             # Add age smoothness penalty to encourage smooth age patterns
-            # Penalize large differences between adjacent age groups
-            smoothness_sigma = 0.02  # controls how much smoothness to enforce
             for param in ["p", "tx", "i", "f", "m", "r", "ti", "tf", "ts"]:
-                # Compute differences between adjacent age groups
-                age_diffs = knot_val_dict[param][1:, :] - knot_val_dict[param][:-1, :]
-                # Add penalty for large age differences
-                log_pr = dist.Normal(0, smoothness_sigma).log_prob(age_diffs).sum()
-                numpyro.factor(f"age_smoothness_{param}_{group}", log_pr)
+                add_age_smoothness_factors(knot_val_dict, param)
 
-            # TODO: consider moving knots of p to midpoints
-            rate_functions = single_location_model(
-                group,
-                sex,
-                location,
+            # Rate functions and Data Likelihood
+            i = at_param_w_data(
+                "i", ages, years, knot_val_dict["i"], df_data[df_data.measure == "i"]
+            )
+            r = at_param_w_data(
+                "r", ages, years, knot_val_dict["r"], df_data[df_data.measure == "r"]
+            )
+            ti = at_param_w_data(
+                "ti", ages, years, knot_val_dict["ti"], df_data[df_data.measure == "ti"]
+            )
+            ts = at_param_w_data(
+                "ts", ages, years, knot_val_dict["ts"], df_data[df_data.measure == "ts"]
+            )
+            tf = at_param_w_data(
+                "tf", ages, years, knot_val_dict["tf"], df_data[df_data.measure == "tf"]
+            )
+            f = at_param_w_data(
+                "f", ages, years, knot_val_dict["f"], df_data[df_data.measure == "f"]
+            )
+            m = at_param_w_data(
+                "m", ages, years, knot_val_dict["m"], df_data[df_data.measure == "m"]
+            )
+
+            p = at_param_w_data(
+                "p",
                 ages,
                 years,
-                knot_val_dict,
-                df_data,
-                include_consistency_constraints=True,
+                knot_val_dict["p"],
+                df_data[df_data.measure == "p"],
             )
+
+            tx = at_param_w_data(
+                "tx",
+                ages,
+                years,
+                knot_val_dict["tx"],
+                df_data[df_data.measure == "tx"],
+            )
+
+            # Consistency constraints
+            sigma = 0.005
+
+            def dismod_f(t, y, args):
+                S, C, T = y
+                i, r, ti, ts, tf, f, m = args
+                return (
+                    # don't reformat this equation block when running `isort .; black .`
+                    # fmt: off
+                    0 - m * S         - i * S + r * C          + ts * T         ,
+                    0 - m * C - f * C + i * S - r * C - ti * C          + tf * T,
+                    0 - m * T                         + ti * C - ts * T - tf * T,
+                    # fmt: on
+                )
+
+            def ode_consistency_factor(at):
+                a, t = at
+                dt = 5
+                term = ODETerm(dismod_f)
+                solver = Dopri5()
+                saveat = SaveAt(t0=False, t1=True)
+
+                y0 = (1 - p(a, t), p(a, t) * (1 - tx(a, t)), p(a, t) * tx(a, t))
+                solution = diffeqsolve(
+                    term,
+                    solver,
+                    t0=t,
+                    t1=t + dt,
+                    dt0=0.5,
+                    y0=y0,
+                    saveat=saveat,
+                    args=[
+                        i(a, t),
+                        r(a, t),
+                        ti(a, t),
+                        ts(a, t),
+                        tf(a, t),
+                        f(a, t),
+                        m(a, t),
+                    ],
+                )
+
+                S, C, T = solution.ys
+                # Numerical stability for log terms
+                eps = 1e-8
+                denom_total = S + C + T
+                denom_prev = C + T
+
+                r_prev = jnp.clip((C + T) / (denom_total + eps), eps)
+                r_tx = jnp.clip(T / (denom_prev + eps), eps)
+
+                sq_difference = 0.0
+                sq_difference += (
+                    jnp.log(r_prev) - jnp.log(jnp.clip(p(a + dt, t + dt), eps))
+                ) ** 2
+                sq_difference += (
+                    jnp.log(r_tx) - jnp.log(jnp.clip(tx(a + dt, t + dt), eps))
+                ) ** 2
+                return jnp.sqrt(sq_difference)
+
+            # Vectorize the ode_consistency_factor function
+            ode_consistency_factors = jax.vmap(ode_consistency_factor)
+
+            # Create a mesh grid of ages and years
+            age_mesh, year_mesh = jnp.meshgrid(jnp.array(ages), jnp.array(years))
+            at_list = jnp.stack([age_mesh.ravel(), year_mesh.ravel()], axis=-1)
+
+            # Compute ODE errors for all age-time combinations at once
+            ode_errors = numpyro.deterministic(
+                f"ode_errors", ode_consistency_factors(at_list)
+            )
+
+            # Add a normal penalty for difference between solution and SC
+            log_pr = dist.Normal(0, sigma).log_prob(ode_errors).sum()
+            numpyro.factor(f"ode_consistency_factor", log_pr)
 
         sampler = infer.MCMC(
             infer.NUTS(
                 model,
                 init_strategy=numpyro.infer.init_to_value(
                     values={
-                        f"p_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"tx_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"i_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"f_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"m_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"r_{group}": jnp.ones([len(ages), len(years)]) * 1.00,
-                        f"ti_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"ts_{group}": jnp.ones([len(ages), len(years)]) * 0.05,
-                        f"tf_{group}": jnp.ones([len(ages), len(years)]) * 1.00,
+                        f"p": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"tx": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"i": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"f": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"m": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"r": jnp.ones([len(ages), len(years)]) * 1.00,
+                        f"ti": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"ts": jnp.ones([len(ages), len(years)]) * 0.05,
+                        f"tf": jnp.ones([len(ages), len(years)]) * 1.00,
                     }
                 ),
             ),
@@ -352,10 +346,7 @@ class ConsistentModel:
 
         # Handle ode_errors which has a different key format and shape
         if param == "ode_errors":
-            # ode_errors uses the full group name (sex_location)
-            location = ""
-            group = group_name(self.sex, location)
-            sample_key = f"ode_errors_{group}"
+            sample_key = "ode_errors"
             # ode_errors is flattened from mesh grid, need to reshape
             ode_data = self.samples[sample_key]
             # Reshape from (n_samples, n_ages * n_years) to (n_samples, n_ages, n_years)
@@ -363,9 +354,8 @@ class ConsistentModel:
                 ode_data.shape[0], len(self.ages), len(self.years)
             )
         else:
-            # Regular params use empty group suffix
-            group = ""
-            sample_key = f"{param}_{group}"
+            # Regular params
+            sample_key = f"{param}"
 
         rate_table = []
         for i, a in enumerate(self.ages):
