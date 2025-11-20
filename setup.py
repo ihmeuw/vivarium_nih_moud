@@ -67,7 +67,7 @@ if __name__ == "__main__":
         "interpax",
     ]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.3"]
-    test_requirements = ["pytest", "matplotlib"]
+    test_requirements = ["pytest", "matplotlib", "setuptools"]
     lint_requirements = ["black", "isort"]
 
     setup(
