@@ -27,7 +27,7 @@ all necessary requirements as follows::
   (vivarium_nih_moud) :~$ pip install -e .
   ...pip will install vivarium and other requirements...
 
-Supported Python versions: 3.9, 3.10, 3.11, 3.12
+Supported Python versions: 3.10, 3.11, 3.12
 
 Note the ``-e`` flag that follows pip install. This will install the python
 package in-place, which is important for making the model specifications later.
